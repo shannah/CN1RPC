@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project name="CodenameOneServerAnnotations" default="default" basedir=".">
+    <description>Builds, tests, and runs the project Codename One Server Annotations.</description>
+    <target name="install-tests" description="Install jar files into TestWebApp">
+        <copy todir="${basedir}/../TestWebApp/lib/" file="target/cn1rpc-0.1.0-SNAPSHOT.jar" overwrite="true"/>        
+    </target>
+</project>
+

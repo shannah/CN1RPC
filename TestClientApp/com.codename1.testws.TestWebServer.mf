@@ -1,0 +1,11 @@
+com/codename1/testws/ChildExternalizable.java
+com/codename1/testws/ChildExternalizableImpl.java
+com/codename1/testws/ExternalizableFactory.java
+com/codename1/testws/InternalExternalizables.java
+com/codename1/testws/InternalExternalizables_Nested1Impl.java
+com/codename1/testws/InternalExternalizables_Nested2Impl.java
+com/codename1/testws/ParentExternalizable.java
+com/codename1/testws/ParentExternalizableImpl.java
+com/codename1/testws/TestExternalizable.java
+com/codename1/testws/TestExternalizableImpl.java
+com/codename1/testws/TestWebServerProxy.java

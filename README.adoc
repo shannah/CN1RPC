@@ -1,0 +1,29 @@
+= CN1RPC
+A library to facilitate RPC between Codename One clients and Java servers
+
+== Synopsis
+
+This library provides a minimal set of annotations to generate RPC client and server code for Codename One applications.  The library itself meant to be used in Java server projects, but it includes a mechanism to seamlessly keep client projects in sync.
+
+== Usage
+
+To create a web service that uses Codename One RPC, simply add the `@WebService` annotation to any class in your project.  Then all `public` `static` methods in that class will be accessible to your Codename One client using RPC (remote procedure calls).
+
+A simple example:
+
+[source,java]
+----
+package com.example.myadder;
+
+import com.codename1.ws.annotations.WebService;
+
+@WebService
+public class TestWebServer {
+    public static int add(int a, int b) {
+        return a+b;
+    }
+}
+----
+
+TODO:  Finish the example
+
