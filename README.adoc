@@ -5,6 +5,37 @@ A library to facilitate RPC between Codename One clients and Java servers
 
 This library provides a minimal set of annotations to generate RPC client and server code for Codename One applications.  The library itself meant to be used in Java server projects, but it includes a mechanism to seamlessly keep client projects in sync.
 
+== Installation
+
+First clone this repo and install with Maven
+----
+$ git clone https://github.com/shannah/CN1RPC.git
+$ cd CN1RPC/CodenameOneServerAnnotationsMaven
+$ mvn clean install
+----
+
+Next add dependencies to your Java server project.
+
+**Maven Projects**:
+
+Add the following to your pom.xml:
+
+----
+<dependency>
+    <groupId>com.codename1</groupId>
+    <artifactId>cn1rpc</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+</dependency>
+----
+
+**Non-Maven Projects**
+
+Add the following to your server project's classpath:
+
+1. `CodenameOneServerAnnotationsMaven/target/cn1rpc-0.1.0.jar`
+2. `TestWebApp/lib/javapoet-1.2.0-SNAPSHOT.jar`
+
+
 == Usage
 
 To create a web service that uses Codename One RPC, simply add the `@WebService` annotation to any class in your project.  Then all `public` `static` methods in that class will be accessible to your Codename One client using RPC (remote procedure calls).
