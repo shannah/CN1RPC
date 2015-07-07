@@ -147,7 +147,6 @@ public class WebServiceProcessor extends AbstractProcessor {
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-        System.out.println("Processing annotations "+annotations);
         // Get all of the externalizables
         for (Element annotatedElement : roundEnv.getElementsAnnotatedWith(Externalizable.class)) {
             if (annotatedElement.getKind() == ElementKind.CLASS) {
@@ -263,7 +262,6 @@ public class WebServiceProcessor extends AbstractProcessor {
         }
         
         externalizables.clear();
-        System.out.println("Is processing over? "+roundEnv.processingOver());
         return true;
     }
     
@@ -387,7 +385,6 @@ public class WebServiceProcessor extends AbstractProcessor {
                     contents = contents.replaceAll("\\bimport com\\.codename1\\.ws.annotations\\.Externalizable;", "");
                     contents = "// DO NOT MODIFY THIS FILE.  IT HAS BEEN AUTOMATICALLY GENERATED\n" + 
                                 "// CHANGES MAY BE OVERWRITTEN WITHOUT NOTICE\n" + contents;
-                    System.out.println("Contents: "+contents);
                     Util.copy(new ByteArrayInputStream(contents.getBytes()), output);
                 } finally {
                     if (input != null) {

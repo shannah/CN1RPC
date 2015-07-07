@@ -75,8 +75,6 @@ public class ServletClass {
         for (FactoryClass factory : factories) {
             this.factories.put(factory.getPackageName(), factory);
         }
-        System.out.println("Input factories: "+factories);
-        System.out.println("Factories: "+this.factories);
         
         this.serverClass = serverClass;
         this.types = types;
@@ -279,7 +277,6 @@ public class ServletClass {
                     
                     int i=0;
                     for (TypeMirror ptype : t.getParameterTypes()) {
-                        System.out.println("Param: "+ptype.toString());
                         stmt.append("($T)args[").append(i++).append("], ");
                         stmtArgs.add(ClassName.get(ptype));
                         /*

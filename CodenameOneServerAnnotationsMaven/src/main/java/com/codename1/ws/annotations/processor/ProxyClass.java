@@ -74,9 +74,6 @@ public class ProxyClass {
         for (FactoryClass factory : factories) {
             this.factories.put(factory.getPackageName(), factory);
         }
-        System.out.println("Input factories: "+factories);
-        System.out.println("Factories: "+this.factories);
-        
         this.serverClass = serverClass;
         typeUtils = types;
     }
@@ -306,7 +303,6 @@ public class ProxyClass {
                     stmt.setLength(stmt.length()-2);
                     
                     stmt.append(")");
-                    System.out.println("Adding statement "+stmt+" with args "+stmtArgs);
                     methodSync.addStatement(stmt.toString(), stmtArgs.toArray());
                     
                     stmt = new StringBuilder();

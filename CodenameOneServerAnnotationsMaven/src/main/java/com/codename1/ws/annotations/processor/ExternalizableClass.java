@@ -166,7 +166,6 @@ public class ExternalizableClass {
         
         TypeMirror currType = classElement.asType();
         while (currType != null && currType.getKind() == TypeKind.DECLARED) {
-            System.out.println("IN loop for "+currType);
             DeclaredType dtype = (DeclaredType)currType;
             TypeElement typeEl = (TypeElement)dtype.asElement();
             if ("java.lang.Object".equals(typeEl.getQualifiedName().toString())) {
@@ -185,7 +184,6 @@ public class ExternalizableClass {
                 VariableElement field = (VariableElement)enclosed;
                 TypeMirror type = field.asType();
                 String typeName = type.toString();
-                System.out.println("Field "+field);
                 String writeStr = getPrimitiveWriteMethod(typeName);
                 
                 if (writeStr != null) {
