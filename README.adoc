@@ -83,7 +83,13 @@ import com.codename1.ws.annotations.WebService;
 public class TestWebServer {
     public static CustomResponse add(int a, int b) {
         int out = a+b;
-        CustomResponse response = ExternalizableFactory.create(CustomResponse.class);
+        
+        // Use the ExternalizableFactory class (which is generated inside
+        // any package that includes @Externalizable classes to create
+        // instances of @Externalizable classes).
+        ExternalizableFactory f = new ExternalizableFactory();
+        
+        CustomResponse response = f.create(CustomResponse.class);
         response.setCode(200);
         response.setMessage("Successfully added two numbers");
         response.setAdditionResult(out);
