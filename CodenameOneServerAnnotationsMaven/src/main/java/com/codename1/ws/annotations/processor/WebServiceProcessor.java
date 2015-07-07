@@ -23,7 +23,6 @@ THE SOFTWARE.
 package com.codename1.ws.annotations.processor;
 
 import com.codename1.io.Util;
-import com.codename1.ws.annotations.CodenameOne;
 import com.codename1.ws.annotations.Externalizable;
 import com.codename1.ws.annotations.WebService;
 import com.google.auto.service.AutoService;
@@ -106,7 +105,6 @@ public class WebServiceProcessor extends AbstractProcessor {
         Set<String> annotations = new LinkedHashSet<String>();
         annotations.add(WebService.class.getCanonicalName());
         annotations.add(Externalizable.class.getCanonicalName());
-        annotations.add(CodenameOne.class.getCanonicalName());
         return annotations;                
     }
 
@@ -234,24 +232,25 @@ public class WebServiceProcessor extends AbstractProcessor {
             }
         }
         
-        for (Element annotatedElement : roundEnv.getElementsAnnotatedWith(CodenameOne.class)) {
-            CodenameOne cn1 = annotatedElement.getAnnotation(CodenameOne.class);
+        for (Element annotatedElement : roundEnv.getElementsAnnotatedWith(WebService.class)) {
+            WebService cn1 = annotatedElement.getAnnotation(WebService.class);
             TypeElement te = (TypeElement)annotatedElement;
             try {
-                
-                File f = new File(getSourceRoot(te), cn1.projectPath());
-                if (f.exists() && f.isDirectory()) {
-                    File buildXml = new File(f, "build.xml");
-                    if (!buildXml.exists()) {
-                        throw new IOException("Path was incorrect.  Could not find build.xml in cn1 project dir");
+                for (String projectPath : cn1.exports()) {
+                    File f = new File(getSourceRoot(te), projectPath);
+                    if (f.exists() && f.isDirectory()) {
+                        File buildXml = new File(f, "build.xml");
+                        if (!buildXml.exists()) {
+                            throw new IOException("Path was incorrect.  Could not find build.xml in cn1 project dir");
+                        }
+                        File srcDir = new File(f, "src");
+                        if (!srcDir.exists()) {
+                            throw new IOException("Path was incorrect.  Could not find src directory in cn1 project dir");
+                        }
+                        copyGeneratedSourcesToClient(te, f);
+                    } else {
+                        throw new IOException("Path was incorrect.  Could not find project cn1 directory.");
                     }
-                    File srcDir = new File(f, "src");
-                    if (!srcDir.exists()) {
-                        throw new IOException("Path was incorrect.  Could not find src directory in cn1 project dir");
-                    }
-                    copyGeneratedSourcesToClient(te, f);
-                } else {
-                    throw new IOException("Path was incorrect.  Could not find project cn1 directory.");
                 }
                 
             } catch (IOException ex) {
@@ -265,12 +264,35 @@ public class WebServiceProcessor extends AbstractProcessor {
         return true;
     }
     
+    private boolean isInPackage(String pkg, File srcRoot, File srcFile) {
+        File pkgDir = new File(srcRoot, pkg.replace('.', File.separatorChar));
+        File f = srcFile.getParentFile();
+        while (f != null && !f.equals(pkgDir)) {
+            f = f.getParentFile();
+        }
+        return f != null;
+    }
+    
+    private boolean isInPackage(Collection<String> packages, File srcRoot, File srcFile) {
+        for (String pkg : packages) {
+            if (isInPackage(pkg, srcRoot, srcFile)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
     private void copyGeneratedSourcesToClient(TypeElement cn1Class, File clientProjectDir) throws IOException {
         // Check managed files
+        
+        File clientProjectSrcDir = new File(clientProjectDir, "src");
         
         CN1ClientFiler clientFiler = new CN1ClientFiler(filer);
         File generatedSources = clientFiler.getRootOutputLocation();
         
+        ProxyClass proxyClass = new ProxyClass(cn1Class, new ArrayList<FactoryClass>(), messager, typeUtils);
+        Set<String> exportedPackages = proxyClass.findExportedPackages();
+        exportedPackages.add(elementUtils.getPackageOf(cn1Class).getQualifiedName().toString());
         String fqn = cn1Class.getQualifiedName().toString();
         File manifest = new File(clientProjectDir, fqn+".mf");
         if (manifest.exists()) {
@@ -279,35 +301,48 @@ public class WebServiceProcessor extends AbstractProcessor {
                 if (srcFilePath.trim().length() == 0) {
                     continue;
                 }
-                File srcFile = new File(clientProjectDir, "src" + File.separator + srcFilePath);
+                File srcFile = new File(clientProjectSrcDir, srcFilePath);
                 File newFile = new File(generatedSources, srcFilePath);
-                if (srcFile.exists() && (!newFile.exists() || srcFile.lastModified() < newFile.lastModified())) {
+                boolean shouldDelete = false;
+                if (!shouldDelete && !srcFile.exists()) {
+                    shouldDelete = true;
+                }
+                if (!shouldDelete && srcFile.lastModified() < newFile.lastModified()) {
+                    shouldDelete = true;
+                }
+                if (!shouldDelete && !isInPackage(exportedPackages, clientProjectSrcDir, srcFile)) {
+                    shouldDelete = true;
+                }
+                if (shouldDelete) {
                     srcFile.delete();
                 }
             }
         }
         manifest.delete();
-        File destSources = new File(clientProjectDir, "src");
+        //File destSources = new File(clientProjectDir, "src");
         manifestEntries = new ArrayList<String>();
         copyDirRoot = null;
-        copyDir(generatedSources, destSources, destSources, destSources, destSources);
+        copyDirDestRoot = null;
+        copyDirPackageFilter = exportedPackages;
+        copyDir(generatedSources, clientProjectSrcDir, clientProjectSrcDir, clientProjectSrcDir, clientProjectSrcDir);
         PrintWriter writer = new PrintWriter(manifest.getAbsolutePath());
         for (String entry : manifestEntries) {
             writer.append(entry);
             writer.append("\n");
         }
         writer.close();
-        manifestEntries = null;
-        
-        
-        
+        manifestEntries = null; 
     }
     private List<String> manifestEntries;
-    private File copyDirRoot;
+    private File copyDirRoot, copyDirDestRoot;
+    private Collection<String> copyDirPackageFilter;
     
     private void copyDir(File dir, File classesDir, File resDir, File sourceDir, File libsDir) throws IOException {
         if (copyDirRoot==null) {
             copyDirRoot = dir;
+        }
+        if (copyDirDestRoot==null) {
+            copyDirDestRoot = sourceDir;
         }
         for (File currentFile : dir.listFiles()) {
             String fileName = currentFile.getName();
@@ -329,7 +364,12 @@ public class WebServiceProcessor extends AbstractProcessor {
             } else {
                 if (fileName.endsWith(".java") || fileName.endsWith(".m") || fileName.endsWith(".h") || fileName.endsWith(".cs")) {
                     destFile = new File(sourceDir, fileName);
-                    String relPath = destFile.getAbsolutePath().substring(copyDirRoot.getAbsolutePath().length()+2);
+                    if (copyDirPackageFilter != null && !isInPackage(copyDirPackageFilter, copyDirRoot, currentFile)) {
+                        // If the current file isn't in one of the specified packages
+                        // we just skip it
+                        continue;
+                    }
+                    String relPath = destFile.getAbsolutePath().substring(copyDirDestRoot.getAbsolutePath().length()+1);
                     manifestEntries.add(relPath);
                 } else {
                     if (fileName.endsWith(".jar") || fileName.endsWith(".a") || fileName.endsWith(".dylib")) {

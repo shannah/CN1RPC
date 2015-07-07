@@ -104,7 +104,7 @@ public class ProxyClass {
      * packages that need to be exported.
      * @return Set of package names
      */
-    private Set<String> findExportedPackages() {
+    Set<String> findExportedPackages() {
         HashSet<String> out = new HashSet<String>();
         for (Element e : serverClass.getEnclosedElements()) {
             if (e.getKind() == ElementKind.METHOD) {

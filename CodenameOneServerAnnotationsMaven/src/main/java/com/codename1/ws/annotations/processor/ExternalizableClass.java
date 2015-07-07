@@ -240,7 +240,6 @@ public class ExternalizableClass {
                 VariableElement field = (VariableElement)enclosed;
                 TypeMirror type = field.asType();
                 String typeName = type.toString();
-                System.out.println("Field "+field);
                 String readStr = getPrimitiveReadMethod(typeName);
                 
                 if (readStr != null) {

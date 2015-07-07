@@ -21,15 +21,17 @@ THE SOFTWARE.
 */
 package com.codename1.testws;
 
-import com.codename1.ws.annotations.CodenameOne;
 import com.codename1.ws.annotations.WebService;
 
 /**
  *
  * @author shannah
  */
-@WebService(name="CN1Servier", urlPattern="/cn1rpc")
-@CodenameOne(projectPath="../../../TestClientApp")
+@WebService(
+        name="CN1Servier", 
+        urlPattern="/cn1rpc", 
+        exports={"../../../TestClientApp"}
+)
 public class TestWebServer {
     public static int add(int a, int b) {
         return a+b*2;

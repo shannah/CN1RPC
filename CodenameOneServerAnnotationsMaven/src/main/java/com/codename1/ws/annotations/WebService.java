@@ -31,6 +31,27 @@ import java.lang.annotation.Target;
  */
 @Target(ElementType.TYPE)
 public @interface WebService {
+    /**
+     * The name of the web service and resulting servlet.  Defaults
+     * to the simple name of the @WebService class.
+     * @return 
+     */
     public String name() default "";
+    
+    /**
+     * The urlPattern of the resulting servlet.  Defaults to the 
+     * simple name of the servlet class.
+     * @return 
+     */
     public String urlPattern() default "";
+    
+    /**
+     * Paths to the client projects that need to consume this web service.
+     * This will cause the client files to be automatically copied into
+     * the "src" directory of the client project on build.
+     * 
+     * Paths can be absolute or relative (from the "SRC_ROOT" directory).
+     * @return 
+     */
+    public String[] exports() default {};
 }
