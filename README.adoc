@@ -154,24 +154,28 @@ public class MyApp {
 
 === Synchronizing Server and Client Project Classes
 
-The annotation processor handles the generation of all boiler-plate code for both the server and client.  Generated client code is saved to a directory named `cn1-client-generated-sources` inside the server project's `build` directory (as a sibling directory of `generated-sources`).  There are three strategies that you can use for copying these files into your Codename One client project:
+The annotation processor handles the generation of all boiler-plate code for both the server and client.  Generated client code is saved to a directory named `cn1-client-generated-sources` inside the server project's `build` directory (as a sibling directory of `generated-sources`).  
 
-1. Manually copy them whenever you make changes the would cause the client files to be updated.
-2. Set up an ANT script to run every time you build the server project to copy the source files into the client.
-3. Use the `@CodenameOne` annotation on any class in your server project and provide the path to your Codename One client project.  E.g.
+You can automatically export the generated client source files to your client project using the `exports` attribute of the `@WebService` annotation.  E.g.
 
 [source,java]
 ----
-@CodenameOne(projectPath="/path/to/ClientProject")
-class SomeClass{}
+
+@WebService(exports={"/path/to/ClientProject"})
+public class TestWebServer {
+   ...
+}
 ----
 
 You can also use a relative path (from the "source" directory of the server project).
 
 [source,java]
 ----
-@CodenameOne(projectPath="../../../ClientProject")
-class SomeClass{}
+
+@WebService(exports={"../../../ClientProject"})
+public class TestWebServer {
+   ...
+}
 ----
 
 
