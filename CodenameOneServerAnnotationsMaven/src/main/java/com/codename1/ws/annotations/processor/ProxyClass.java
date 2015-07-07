@@ -29,7 +29,9 @@ import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
+import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeSpec;
+import com.squareup.javapoet.TypeVariableName;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.Writer;
@@ -225,10 +227,24 @@ public class ProxyClass {
                 .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
                 .returns(void.class);
         
+        MethodSpec.Builder createBuilder = MethodSpec.methodBuilder("create");
+        TypeVariableName type = TypeVariableName.get("T");
+        createBuilder.addModifiers(Modifier.PUBLIC)
+                .addTypeVariable(type)
+                .returns(type)
+                .addParameter(ParameterizedTypeName.get(ClassName.get("java.lang", "Class"), type), "cls")
+                ;
+        
         initBuilder.beginControlFlow("if (!initialized)");
         initBuilder.addStatement("initialized = true");
         for (FactoryClass factory : findExportedExternalizableFactories()) {
             initBuilder.addStatement("new $T().init()", ClassName.get(factory.getPackageName(), factory.getSimpleName()));
+            createBuilder.beginControlFlow("try");
+            createBuilder.addStatement("return new $T().create(cls)", ClassName.get(factory.getPackageName(), factory.getSimpleName()));
+            createBuilder.endControlFlow();
+            createBuilder.beginControlFlow("catch (Throwable t)");
+            createBuilder.endControlFlow();
+            createBuilder.addStatement("throw new RuntimeException(\"No matching implementation found for class.\")");
         }
         initBuilder.endControlFlow();
         
@@ -238,7 +254,14 @@ public class ProxyClass {
                 .addModifiers(Modifier.PUBLIC)
                 .addParameter(String.class, "url")
                 .addStatement("init()")
-                .addStatement("this.url=url+\"$L\"", urlPattern);
+                .beginControlFlow("if (url.charAt(url.length()-1) != '/')")
+                .addStatement("url = url + \"/\"")
+                .endControlFlow()
+                .addStatement("String urlPattern = \"$L\"", urlPattern)
+                .beginControlFlow("if (urlPattern.charAt(0) == '/')")
+                .addStatement("urlPattern = urlPattern.substring(1)")
+                .endControlFlow()
+                .addStatement("this.url=url+urlPattern");
         
         FieldSpec initialized = FieldSpec.builder(boolean.class, "initialized", Modifier.PRIVATE, Modifier.STATIC).build();
         List<FieldSpec> fieldSpecs = new ArrayList<FieldSpec>();
@@ -377,8 +400,10 @@ public class ProxyClass {
                 .addModifiers(Modifier.PUBLIC)
                 .addMethod(initBuilder.build())
                 .addMethod(constr.build())
+                .addMethod(createBuilder.build())
                 .addField(url)
                 .addField(initialized);
+        
                 
         for (FieldSpec fb : fieldSpecs) {
             typeSpec.addField(fb);

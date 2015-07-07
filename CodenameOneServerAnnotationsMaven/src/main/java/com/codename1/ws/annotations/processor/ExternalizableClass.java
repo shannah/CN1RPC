@@ -172,7 +172,11 @@ public class ExternalizableClass {
                 break;
             }
             for (Element enclosed : typeEl.getEnclosedElements()) {
-                if (enclosed.getKind() == ElementKind.FIELD && !enclosed.getModifiers().contains(Modifier.PRIVATE)) {
+                if (enclosed.getKind() == ElementKind.FIELD 
+                        && !enclosed.getModifiers().contains(Modifier.PRIVATE) 
+                        && !enclosed.getModifiers().contains(Modifier.STATIC)
+                        && !enclosed.getModifiers().contains(Modifier.TRANSIENT)
+                        && !enclosed.getModifiers().contains(Modifier.FINAL)) {
                     fields.add(enclosed);
                 }
             }
