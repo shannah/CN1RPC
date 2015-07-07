@@ -7,16 +7,18 @@ This library provides a minimal set of annotations to generate RPC client and se
 
 == Installation
 
+
+
+**Maven Projects**:
+
 First clone this repo and install with Maven
 ----
 $ git clone https://github.com/shannah/CN1RPC.git
 $ cd CN1RPC/CodenameOneServerAnnotationsMaven
-$ mvn clean install
+$ mvn install
 ----
 
 Next add dependencies to your Java server project.
-
-**Maven Projects**:
 
 Add the following to your pom.xml:
 
@@ -30,10 +32,10 @@ Add the following to your pom.xml:
 
 **Non-Maven Projects**
 
-Add the following to your server project's classpath:
+* Download https://github.com/shannah/CN1RPC/raw/master/TestWebApp/lib/cn1rpc-0.1.0-SNAPSHOT.jar[CN1RPC]
+* Download https://github.com/shannah/CN1RPC/raw/master/TestWebApp/lib/javapoet-1.2.0-SNAPSHOT.jar[JavaPoet] (Required by CN1RPC)
 
-1. `CodenameOneServerAnnotationsMaven/target/cn1rpc-0.1.0.jar`
-2. `TestWebApp/lib/javapoet-1.2.0-SNAPSHOT.jar`
+Add them to your project's compile classpath.
 
 
 == Usage
