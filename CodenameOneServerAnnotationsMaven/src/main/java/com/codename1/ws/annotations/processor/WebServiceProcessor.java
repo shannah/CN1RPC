@@ -456,7 +456,7 @@ public class WebServiceProcessor extends AbstractProcessor {
     
     private void generateServlet(TypeElement classElement, Collection<FactoryClass> factories) throws IOException {
         addProxyServerHelper();
-        ServletClass cls = new ServletClass(classElement, factories, messager, typeUtils );
+        ServletClass cls = new ServletClass(classElement, factories, messager, typeUtils, elementUtils );
         cls.generateSource(filer);
     }
     

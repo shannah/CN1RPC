@@ -54,6 +54,7 @@ import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.ReferenceType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic.Kind;
 import javax.tools.JavaFileObject;
@@ -69,8 +70,9 @@ public class ServletClass {
     private Map<String, FactoryClass> factories = new HashMap<String,FactoryClass>();
     private String suffix = "Servlet";
     private Types types;
+    private Elements elementUtils;
     
-    public ServletClass(TypeElement serverClass, Collection<FactoryClass> factories, Messager messager, Types types) {
+    public ServletClass(TypeElement serverClass, Collection<FactoryClass> factories, Messager messager, Types types, Elements elementUtils) {
         this.messager = messager;
         for (FactoryClass factory : factories) {
             this.factories.put(factory.getPackageName(), factory);
@@ -78,6 +80,8 @@ public class ServletClass {
         
         this.serverClass = serverClass;
         this.types = types;
+        this.elementUtils = elementUtils;
+        
     }
     
     
@@ -150,7 +154,7 @@ public class ServletClass {
         return out;
     }
     
-    
+    /*
     private List<FactoryClass> findExportedExternalizableFactories() {
         ArrayList<FactoryClass> out = new ArrayList<FactoryClass>();
         for (String pkg : findExportedPackages()) {
@@ -161,7 +165,7 @@ public class ServletClass {
         }
         return out;
     }
-    
+    */
     public void generateSource(Filer filer) throws IOException {
         
         MethodSpec.Builder initBuilder = MethodSpec.methodBuilder("init")
@@ -169,8 +173,9 @@ public class ServletClass {
                 .returns(void.class)
                 .addException(ClassName.get("javax.servlet", "ServletException"));
         
-        for (FactoryClass factory : findExportedExternalizableFactories()) {
-            initBuilder.addStatement("new $T().init()", ClassName.get(factory.getPackageName(), factory.getSimpleName()));
+        for (String pkg : findExportedPackages()) {
+            
+            initBuilder.addStatement("new $T().init()", ClassName.get(pkg, "ExternalizableFactory"));
         }
         
         

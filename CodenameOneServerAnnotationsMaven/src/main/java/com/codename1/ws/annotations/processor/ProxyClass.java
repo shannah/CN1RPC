@@ -150,7 +150,7 @@ public class ProxyClass {
         return out;
     }
     
-    
+    /*
     private List<FactoryClass> findExportedExternalizableFactories() {
         ArrayList<FactoryClass> out = new ArrayList<FactoryClass>();
         for (String pkg : findExportedPackages()) {
@@ -161,7 +161,7 @@ public class ProxyClass {
         }
         return out;
     }
-    
+    */
     private String getPackageName(String fqn) {
         if (fqn.indexOf(".") >= 0) {
             String pkg = fqn.substring(0, fqn.lastIndexOf("."));
@@ -237,10 +237,10 @@ public class ProxyClass {
         
         initBuilder.beginControlFlow("if (!initialized)");
         initBuilder.addStatement("initialized = true");
-        for (FactoryClass factory : findExportedExternalizableFactories()) {
-            initBuilder.addStatement("new $T().init()", ClassName.get(factory.getPackageName(), factory.getSimpleName()));
+        for (String pkg : findExportedPackages()) {
+            initBuilder.addStatement("new $T().init()", ClassName.get(pkg, "ExternalizableFactory"));
             createBuilder.beginControlFlow("try");
-            createBuilder.addStatement("return new $T().create(cls)", ClassName.get(factory.getPackageName(), factory.getSimpleName()));
+            createBuilder.addStatement("return new $T().create(cls)", ClassName.get(pkg, "ExternalizableFactory"));
             createBuilder.endControlFlow();
             createBuilder.beginControlFlow("catch (Throwable t)");
             createBuilder.endControlFlow();

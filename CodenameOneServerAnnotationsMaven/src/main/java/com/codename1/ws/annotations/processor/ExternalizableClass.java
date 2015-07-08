@@ -31,7 +31,9 @@ import com.squareup.javapoet.TypeSpec;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.Element;
@@ -53,6 +55,7 @@ public class ExternalizableClass {
     final TypeElement classElement;
     private final String suffix = "Impl";
     private final Messager messager;
+    private Set<TypeElement> dependentTypes = new HashSet<TypeElement>();
     
     public ExternalizableClass(TypeElement classElement, Messager messager) {
         this.classElement = classElement;
