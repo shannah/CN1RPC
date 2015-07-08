@@ -112,7 +112,7 @@ public class FactoryClass {
             deps[i++] = cls.getTypeElement();
         }
         
-        JavaFileObject jfo = filer.createSourceFile(getQualifiedName(), null);
+        JavaFileObject jfo = filer.createSourceFile(getQualifiedName(), deps);
         //messager.printMessage(Kind.NOTE, "Writing Java source file "+jfo);
         
         Writer writer = null;

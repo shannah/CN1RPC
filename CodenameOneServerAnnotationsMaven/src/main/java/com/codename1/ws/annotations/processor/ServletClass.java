@@ -396,7 +396,7 @@ public class ServletClass {
         
         
         
-        JavaFileObject jfo = filer.createSourceFile(getQualifiedName(), null);
+        JavaFileObject jfo = filer.createSourceFile(getQualifiedName(), this.serverClass);
         //messager.printMessage(Kind.NOTE, "Writing Java source file "+jfo);
         
         Writer writer = null;

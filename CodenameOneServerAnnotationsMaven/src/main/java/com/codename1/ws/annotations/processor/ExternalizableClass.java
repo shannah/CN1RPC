@@ -326,11 +326,11 @@ public class ExternalizableClass {
         String classSource = javaFile.toString();
         //JavaFileObject jfo = filer.createSourceFile(getQualifiedName(), classElement);
         // Seems to still be hitting this netbeans bug if I include originiting
-        JavaFileObject jfo = filer.createSourceFile(getQualifiedName(), null);
+        JavaFileObject jfo = filer.createSourceFile(getQualifiedName(), classElement);
         
         CN1ClientFiler clientFiler = new CN1ClientFiler(filer);
         
-        JavaFileObject clientJfo = clientFiler.createSourceFile(getQualifiedName(), new Element[]{classElement.getEnclosingElement()});
+        JavaFileObject clientJfo = clientFiler.createSourceFile(getQualifiedName(), classElement);
         //messager.printMessage(Kind.NOTE, "Writing Java source file "+jfo);
         
         Writer writer = null;
