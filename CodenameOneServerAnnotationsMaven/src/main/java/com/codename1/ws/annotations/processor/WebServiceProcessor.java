@@ -61,7 +61,9 @@ import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
+import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
@@ -143,12 +145,29 @@ public class WebServiceProcessor extends AbstractProcessor {
     }
     
 
+    private PackageElement findPackageElement(Element el) {
+        if (el.getKind() == ElementKind.PACKAGE) {
+            return (PackageElement)el;
+        } else {
+            Element parent = el.getEnclosingElement();
+            if (parent == null) {
+                return null;
+            } else {
+                return findPackageElement(parent);
+            }
+        }
+    }
+    
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+        
+        //System.out.println("Starting round");
+        //System.out.println(roundEnv.getElementsAnnotatedWith(Externalizable.class));
         // Get all of the externalizables
+        Set<PackageElement> packages = new HashSet<PackageElement>();
         for (Element annotatedElement : roundEnv.getElementsAnnotatedWith(Externalizable.class)) {
             if (annotatedElement.getKind() == ElementKind.CLASS) {
-                
+                packages.add(findPackageElement(annotatedElement));
                 externalizables.add(new ExternalizableClass((TypeElement)annotatedElement, messager));
             }
         }
@@ -165,19 +184,19 @@ public class WebServiceProcessor extends AbstractProcessor {
         
         // Now let's create factories for each package
         
-        Map<String,Set<ExternalizableClass>> extPackages = new HashMap<String, Set<ExternalizableClass>>();
-        for (ExternalizableClass cls : externalizables) {
-            Set<ExternalizableClass> pkg = (Set<ExternalizableClass>)extPackages.get(cls.getPackageName());
-            if (pkg == null) {
-                pkg = new HashSet<ExternalizableClass>();
-                extPackages.put(cls.getPackageName(), pkg);
-            }
-            pkg.add(cls);
-        }
+        //Map<String,Set<ExternalizableClass>> extPackages = new HashMap<String, Set<ExternalizableClass>>();
+//        for (ExternalizableClass cls : externalizables) {
+//            Set<ExternalizableClass> pkg = (Set<ExternalizableClass>)extPackages.get(cls.getPackageName());
+//            if (pkg == null) {
+//                pkg = new HashSet<ExternalizableClass>();
+//                extPackages.put(cls.getPackageName(), pkg);
+//            }
+//            pkg.add(cls);
+//        }
         List<FactoryClass> factories = new ArrayList<FactoryClass>();
-        
-        for (String pkg : extPackages.keySet()) {
-            FactoryClass fc = new FactoryClass(pkg, extPackages.get(pkg), messager);
+        //System.out.println("Packages "+packages);
+        for (PackageElement pkg : packages) {
+            FactoryClass fc = new FactoryClass(pkg, messager, elementUtils);
             factories.add(fc);
             try {
                 fc.generateSource(filer);
@@ -227,12 +246,17 @@ public class WebServiceProcessor extends AbstractProcessor {
                         copyJavaSourceToClient(StandardLocation.SOURCE_PATH, fqn);
                     }
                 }
+                //System.out.println("About to get superclass of "+te);
                 currClass = te.getSuperclass();
+                //System.out.println("Superclass is "+currClass);
                 
             }
+            //System.out.println("Finished copying client files");
+            //messager.printMessage(Kind.NOTE, "Finished copying client files");
         }
         
         for (Element annotatedElement : roundEnv.getElementsAnnotatedWith(WebService.class)) {
+            messager.printMessage(Kind.NOTE, "Processing webservice "+annotatedElement);
             WebService cn1 = annotatedElement.getAnnotation(WebService.class);
             TypeElement te = (TypeElement)annotatedElement;
             try {
@@ -260,6 +284,7 @@ public class WebServiceProcessor extends AbstractProcessor {
             
         }
         
+        //messager.printMessage(Kind.NOTE, "Finished processing");
         externalizables.clear();
         return true;
     }

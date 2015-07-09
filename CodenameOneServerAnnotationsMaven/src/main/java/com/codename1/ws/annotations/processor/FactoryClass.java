@@ -22,6 +22,7 @@ THE SOFTWARE.
 
 package com.codename1.ws.annotations.processor;
 
+import com.codename1.ws.annotations.Externalizable;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
@@ -36,8 +37,14 @@ import java.util.HashSet;
 import java.util.Set;
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.Messager;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
+import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
 import javax.tools.JavaFileObject;
 
 /**
@@ -46,14 +53,19 @@ import javax.tools.JavaFileObject;
  */
 public class FactoryClass {
     private String packageName;
+    private PackageElement packageElement;
     private String className = "ExternalizableFactory";
     private Messager messager;
-    private Set<ExternalizableClass> externalizables = new HashSet<ExternalizableClass>();
+    private Types typeUtil;
+    private Elements elementUtil;
+    //private Set<ExternalizableClass> externalizables = new HashSet<ExternalizableClass>();
     
-    public FactoryClass(String packageName, Collection<ExternalizableClass> externalizables, Messager messager) {
+    public FactoryClass(PackageElement packageElement, Messager messager, Elements elementUtil) {
         this.messager = messager;
-        this.externalizables.addAll(externalizables);
-        this.packageName = packageName;
+        //this.externalizables.addAll(externalizables);
+        this.packageElement = packageElement;
+        this.packageName = packageElement.getQualifiedName().toString();
+        this.elementUtil = elementUtil;
     }
     
     
@@ -70,13 +82,51 @@ public class FactoryClass {
         return packageName;
     }
     
+    private void findExternalizableElementsRecursive(Element root, Set<TypeElement> found) {
+        if (getSimpleName().equals(root.getSimpleName().toString())) {
+            //System.out.println("This is an ExternalizableFactory so we break");
+            return;
+        }
+        for (Element el : root.getEnclosedElements()) {
+            if (el.getAnnotation(Externalizable.class) != null) {
+                found.add((TypeElement)el);
+            } else if (el.getKind() == ElementKind.CLASS){
+                //System.out.println("Finding externalizable "+el);
+                findExternalizableElementsRecursive(el, found);
+            }
+        }
+    }
+    
+    
+    
+    public Set<TypeElement> findExternalizableClasses() {
+        
+        PackageElement pkgEl = this.packageElement;
+        
+        Set<TypeElement> externalizbles = new HashSet<TypeElement>();
+        findExternalizableElementsRecursive(pkgEl, externalizbles);
+        return externalizbles;
+    }
+    
+    public Set<ExternalizableClass> findExternalizableClassWrappers() {
+        Set<ExternalizableClass> out = new HashSet<ExternalizableClass>();
+        for (TypeElement el : findExternalizableClasses()) {
+            out.add(new ExternalizableClass(el, messager));
+        }
+        return out;
+    }
+    
     public void generateSource(Filer filer) throws IOException {
         
         MethodSpec.Builder initBuilder = MethodSpec.methodBuilder("init");
         MethodSpec.Builder b = initBuilder;
         b.returns(void.class)
                 .addModifiers(Modifier.PUBLIC);
+        
+        Set<ExternalizableClass> externalizables = findExternalizableClassWrappers();
+        
         for (ExternalizableClass cls : externalizables) {
+            //System.out.println("Adding register for externalizable "+cls.getQualifiedName());
             b.addStatement("$T.register(\"$L\", $T.class)", ClassName.get("com.codename1.io", "Util"), cls.getTypeElement().getQualifiedName(), ClassName.get(cls.getPackageName(), cls.getSimpleName()));
         }
         
@@ -111,7 +161,7 @@ public class FactoryClass {
         for (ExternalizableClass cls : externalizables) {
             deps[i++] = cls.getTypeElement();
         }
-        
+        //System.out.println("About to create source file "+getQualifiedName());
         JavaFileObject jfo = filer.createSourceFile(getQualifiedName(), deps);
         //messager.printMessage(Kind.NOTE, "Writing Java source file "+jfo);
         

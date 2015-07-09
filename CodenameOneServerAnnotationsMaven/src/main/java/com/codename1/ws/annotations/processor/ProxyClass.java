@@ -244,8 +244,9 @@ public class ProxyClass {
             createBuilder.endControlFlow();
             createBuilder.beginControlFlow("catch (Throwable t)");
             createBuilder.endControlFlow();
-            createBuilder.addStatement("throw new RuntimeException(\"No matching implementation found for class.\")");
+            
         }
+        createBuilder.addStatement("throw new RuntimeException(\"No matching implementation found for class.\")");
         initBuilder.endControlFlow();
         
         FieldSpec url = FieldSpec.builder(String.class, "url", Modifier.PRIVATE, Modifier.FINAL).build();
