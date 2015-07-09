@@ -180,5 +180,16 @@ public class TestWebServer {
 }
 ----
 
+== Troubleshooting & Known Issues
+
+=== 404 Error Trying to Access Servlet 
+
+When you try to run your Java Web Project in Netbeans by clicking the "Run" button, you are unable to access the servlet for your `@WebService` class, even though you are entering the correct URL.  However if you perform a clean build then deploy the .war file to your servlet container, it works fine.
+
+The reason is that there is a bug in Netbeans that causes code generation to break when "Compile on Save" is enabled.
+
+==== Solution
+
+Disable http://wiki.netbeans.org/FaqCompileOnSave[Compile on Save] and "Deploy on Save" in your project.
 
 
