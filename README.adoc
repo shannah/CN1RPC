@@ -5,9 +5,12 @@ A library to facilitate RPC between Codename One clients and Java servers
 
 This library provides a minimal set of annotations to generate RPC client and server code for Codename One applications.  The library itself meant to be used in Java server projects, but it includes a mechanism to seamlessly keep client projects in sync.
 
+== Tutorials
+
+* **https://github.com/shannah/CN1RPC/wiki/SimpleAdder-Tutorial[SimpleAdder Tutorial]** - An introductory tutorial for beginners on how to set up a very basic client-server application with CN1RPC
+* **https://github.com/shannah/CN1RPC/wiki/Movie-Database-Tutorial[Movie Database Tutorial]** - Level 2 tutorial, showing a more complex application that involves passing POJOs as parameters and return types.
+
 == Installation
-
-
 
 **Maven Projects**:
 
