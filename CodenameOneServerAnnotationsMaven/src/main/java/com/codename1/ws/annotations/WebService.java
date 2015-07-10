@@ -240,12 +240,94 @@ public class SimpleAdderProxy {
  * 6. Objects of classes that include the `@Externalizable` annotation (This is because that annotation
  * automatically results in a subclass that implements `Externalizable`.
  * 
+ * === Example using POJO Parameters
+ * 
+ * If you want to pass POJOs in and out of the web service, then the POJO classes
+ * need to have the `@Externalizable` annotation.
+ * 
+ * **AdderWithHistory.java**:
+ * [source,java]
+ * ----
+package com.codename1.demos.simpleadder;
+
+import com.codename1.ws.annotations.WebService;
+
+@WebService
+public class AdderWithHistory {
+    public static AdderContext addInts(AdderContext context) {
+        int result = context.getA() + context.getB();
+        
+        context.setResult(result);
+        context.log(request.getA()+" + "+request.getB()+" = "+result);
+        return context;
+    }
+}
+ * ----
+ * 
+ * **AdderContext.java**
+ * 
+ * [source,java]
+ * ----
+ package com.codename1.demos.simpleadder;
+ import com.codename1.ws.annotations.Externalizable;
+ import java.util.List;
+ import java.util.ArrayList;
+ 
+ @Externalizable
+ public class AdderContext {
+     int a, b, result;
+     List<String> log = new ArrayList<String>();
+    
+     public void log(String str) {
+         log.add(str);
+     }
+     
+     // setters and getters...
+ }
+ * ----
+ * 
+ * **Client Code:**
+ * 
+ * [source,java]
+ * ----
+ * AdderWithHistoryProxy proxy = new AdderWithHistory("http://localhost:8080/adder-client");
+ * AdderContext context = proxy.create(AdderContext.class);
+ * context.setA(1);
+ * context.setB(2);
+ * context = proxy.addInts(context);
+ * context.getResult(); // 3
+ * context.getLog().get(0); // 1 + 2 = 3
+ * 
+ * context.setA(4);
+ * context = proxy.addInts(context);
+ * context.getResult(); // 6
+ * context.getLog().get(0); // 1 + 2 = 3
+ * context.getLog().get(1); // 4 + 2 = 6
+ * 
+ * ----
+ * 
+ * 
  * === Creating Instances of `@Externalizable` types
  * 
- * The generated proxy includes a factory method called `create()` that allows you
- * to create new instances of any of the `@Externalizable` classes that are used
- * as either an input or output of the web service.  This is helpful since you can't just
- * call `new SomeClass()`.
+ * It is important to note that `@Externalizable` types cannot be simply instantiated and passed
+ * to the web service since the class itself doesn't implement serialization.  The annotation results
+ * in a subclass being generated that *does* implement serialization, and it is instances of this
+ * subclass that are supported as input and output in the WebService.
+ * 
+ * You could instantiate those subclasses directly, as their naming conventions are pretty basic (just
+ * add "Impl" as a suffix to the class name, but the preferred way is to use the `ExternalizableFactory`
+ * class that is generated inside each package that contains `@Externalizable` classes.  E.g.
+ * 
+ * [source,java]
+ * ----
+ * ExternalizableFactory f = new ExternalizableFactory();
+ * MyClass o = f.create(MyClass.class);
+ * // Where MyClass has the @Externalizable annotation
+ * ----
+ * 
+ * On the client side, this is simplified further by the `Proxy` class including a wrapper `create()` method
+ * that delegates to the appropriate `ExternalizableFactory`.  However since the ExternalizableFactory is 
+ * installed on both the client and server, you could use the ExternalizableFactory in both places.
  * 
  * @author shannah
  */
@@ -284,7 +366,46 @@ public @interface WebService {
      * the "src" directory of the client project on build.
      * 
      * Paths can be absolute or relative (from the "SRC_ROOT" directory).
-     * @return 
+     * 
+     * **Example**
+     * Suppose you have the following directory structure:
+     * 
+     * ----
+     * /path/to/myapp/
+     *     server/
+     *         src/
+     *             java/
+     *                 com/
+     *                     example/
+     *                         MyService.java
+     *     client/
+     *         src/
+     *             com/
+     *                 example/
+     *                     MyClient.java
+     * ----
+     * 
+     * And the `MyService` class includes the following annotation:
+     * 
+     * ----
+     * @WebService(exports="/path/to/myapp/client")
+     * ----
+     * 
+     * This would result in client files being copied into the client project.  Specifically (for example)
+     * the `MyServiceProxy.java` file would be installed at `/path/to/myapp/client/src/com/example/MyServiceProxy.java`.
+     * 
+     * The same can be achieved through a relative path.  It is important to note that relative paths
+     * are always relative to the *source root* directory that contains the class marked with the `@WebService`
+     * annotation.  E.g.
+     * 
+     * ----
+     * @WebService(exports="../../../client")
+     * ----
+     * 
+     * Would yield the same result as the absolute path above, because the client project
+     * is located 3 levels up from the source root directory of the server project (which is `/path/to/myapp/server/src/java`).
+     * Notice that the source root is in `src/java` and not just `src` in this case.  The source root is considered
+     * the directory that contains the default package in the class path.
      */
     public String[] exports() default {};
 }

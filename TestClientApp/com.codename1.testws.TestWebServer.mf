@@ -8,4 +8,6 @@ com/codename1/testws/ParentExternalizable.java
 com/codename1/testws/ParentExternalizableImpl.java
 com/codename1/testws/TestExternalizable.java
 com/codename1/testws/TestExternalizableImpl.java
+com/codename1/testws/TestVersionedClass.java
+com/codename1/testws/TestVersionedClassImpl.java
 com/codename1/testws/TestWebServerProxy.java

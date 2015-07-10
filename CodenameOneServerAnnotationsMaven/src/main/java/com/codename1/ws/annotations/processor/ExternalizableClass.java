@@ -22,6 +22,7 @@ THE SOFTWARE.
 
 package com.codename1.ws.annotations.processor;
 
+import com.codename1.ws.annotations.Externalizable;
 import com.squareup.javapoet.AnnotationSpec;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.CodeBlock;
@@ -31,9 +32,13 @@ import com.squareup.javapoet.TypeSpec;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.Element;
@@ -159,32 +164,7 @@ public class ExternalizableClass {
         MethodSpec.Builder builder = externalizeBuilder;
         ClassName util = ClassName.get("com.codename1.io", "Util");
         
-        List<Element> fields = new ArrayList<Element>();
-        //for (Element enclosed : classElement.getEnclosedElements()) {
-        //    if (enclosed.getKind() == ElementKind.FIELD && !enclosed.getModifiers().contains(Modifier.PRIVATE)) {
-        //        fields.add(enclosed);
-        //    }
-        //}
-        
-        
-        TypeMirror currType = classElement.asType();
-        while (currType != null && currType.getKind() == TypeKind.DECLARED) {
-            DeclaredType dtype = (DeclaredType)currType;
-            TypeElement typeEl = (TypeElement)dtype.asElement();
-            if ("java.lang.Object".equals(typeEl.getQualifiedName().toString())) {
-                break;
-            }
-            for (Element enclosed : typeEl.getEnclosedElements()) {
-                if (enclosed.getKind() == ElementKind.FIELD 
-                        && !enclosed.getModifiers().contains(Modifier.PRIVATE) 
-                        && !enclosed.getModifiers().contains(Modifier.STATIC)
-                        && !enclosed.getModifiers().contains(Modifier.TRANSIENT)
-                        && !enclosed.getModifiers().contains(Modifier.FINAL)) {
-                    fields.add(enclosed);
-                }
-            }
-            currType = typeEl.getSuperclass();
-        }
+        List<Element> fields = getFieldsForVersion(classElement);
         
         for (Element enclosed : fields) {
             if (enclosed.getKind() == ElementKind.FIELD) {
@@ -240,72 +220,119 @@ public class ExternalizableClass {
                 .addException(IOException.class);
         builder = internalizeBuilder;
         
+        List<Element> currentFields = fields;
+        Map<String, Element> currFieldsLookup = new HashMap<String, Element>();
+        for (Element f : currentFields) {
+            VariableElement field = (VariableElement)f;
+            currFieldsLookup.put(field.toString(), f);
+        }
         
-        
-        for (Element enclosed : fields) {
-            if (enclosed.getKind() == ElementKind.FIELD && !enclosed.getModifiers().contains(Modifier.PRIVATE)) {
-                VariableElement field = (VariableElement)enclosed;
-                TypeMirror type = field.asType();
-                String typeName = type.toString();
-                String readStr = getPrimitiveReadMethod(typeName);
-                
-                if (readStr != null) {
-                    // It's a primitive type
-                    builder.addStatement("this.$N = in."+readStr+"()", field.toString());
-                } else if (typeName.endsWith("[]")) {
-                    String arrayElementTypeName = typeName.substring(0, typeName.lastIndexOf("["));
-                    if (arrayElementTypeName.endsWith("]")) {
-                        messager.printMessage(Kind.ERROR, "@Externalizable doesn't support 2D arrays.  2D array found for field "+field+" of type "+classElement);
-                        return;
-                    }
-                    
-                    int lastDot = arrayElementTypeName.lastIndexOf(".");
-                    String arrayElementTypePkg = "";
-                    String arrayElementSimpleName = arrayElementTypeName;
-                    if (lastDot >= 0) {
-                        arrayElementTypePkg = arrayElementTypeName.substring(0, lastDot);
-                        arrayElementSimpleName = arrayElementTypeName.substring(lastDot+1);
-                    }
-                    // It's an array
-                    builder.addStatement("int len = in.readInt()");
-                   
-                    
-                    readStr = getPrimitiveReadMethod(arrayElementTypeName);
-                    if (readStr == null) {
-                        builder.addStatement("this.$N = new $T[len]", field.toString(), ClassName.get(arrayElementTypePkg, arrayElementSimpleName));
-                    } else {
-                        builder.addStatement("this.$N = new "+arrayElementTypeName+"[len]", field.toString());
-                    }
-                    
-                    CodeBlock.Builder loop = CodeBlock.builder();
-                    loop.beginControlFlow("if (len>0)");
-                    loop.beginControlFlow("for (int i=0; i<len; i++)");
+        Map<Integer, TypeElement> versions = getVersions();
+        versions.put(getCurrentVersion(), classElement);
+        for (Map.Entry<Integer, TypeElement> entry : versions.entrySet()) {
+            builder.beginControlFlow("if (version == $L)", entry.getKey());
+            fields = getFieldsForVersion(entry.getValue());
+            
+            for (Element enclosed : fields) {
+                if (enclosed.getKind() == ElementKind.FIELD && !enclosed.getModifiers().contains(Modifier.PRIVATE)) {
+                    VariableElement field = (VariableElement)enclosed;
+                    TypeMirror type = field.asType();
+                    String typeName = type.toString();
+                    String readStr = getPrimitiveReadMethod(typeName);
+                    Element currentField = currFieldsLookup.get(field.toString());
+                    boolean fieldIsActive = (currentField != null && currentField.asType().toString().equals(typeName));
                     if (readStr != null) {
-                        loop.addStatement("this.$N[i] = in."+readStr+"()", field.toString());
-                    } else if ("java.lang.String".equals(arrayElementTypeName)) {
-                        loop.addStatement("this.$N[i] = $T.readUTF(in)", field.toString(), util);
+                        // It's a primitive type
+                        if (fieldIsActive) {
+                            // The current version of the class contains this field 
+                            // and it is the same type as in the version that is currently being
+                            // read
+                            builder.addStatement("this.$N = in."+readStr+"()", field.toString());
+                        } else {
+                            builder.addStatement("in."+readStr+"()");
+                        }
+                    } else if (typeName.endsWith("[]")) {
+                        String arrayElementTypeName = typeName.substring(0, typeName.lastIndexOf("["));
+                        if (arrayElementTypeName.endsWith("]")) {
+                            messager.printMessage(Kind.ERROR, "@Externalizable doesn't support 2D arrays.  2D array found for field "+field+" of type "+classElement);
+                            return;
+                        }
+
+                        int lastDot = arrayElementTypeName.lastIndexOf(".");
+                        String arrayElementTypePkg = "";
+                        String arrayElementSimpleName = arrayElementTypeName;
+                        if (lastDot >= 0) {
+                            arrayElementTypePkg = arrayElementTypeName.substring(0, lastDot);
+                            arrayElementSimpleName = arrayElementTypeName.substring(lastDot+1);
+                        }
+                        // It's an array
+                        builder.addStatement("int len = in.readInt()");
+
+
+                        readStr = getPrimitiveReadMethod(arrayElementTypeName);
+                        if (readStr == null) {
+                            if (fieldIsActive) {
+                                builder.addStatement("this.$N = new $T[len]", field.toString(), ClassName.get(arrayElementTypePkg, arrayElementSimpleName));
+                            } else {
+                                //builder.addStatement("this.$N = new $T[len]", field.toString(), ClassName.get(arrayElementTypePkg, arrayElementSimpleName));
+                            }
+                        } else {
+                            if (fieldIsActive) {
+                                builder.addStatement("this.$N = new "+arrayElementTypeName+"[len]", field.toString());
+                            }
+                        }
+
+                        CodeBlock.Builder loop = CodeBlock.builder();
+                        loop.beginControlFlow("if (len>0)");
+                        loop.beginControlFlow("for (int i=0; i<len; i++)");
+                        if (readStr != null) {
+                            if (fieldIsActive) {
+                                loop.addStatement("this.$N[i] = in."+readStr+"()", field.toString());
+                            } else {
+                                loop.addStatement("in."+readStr+"()");
+                            }
+                        } else if ("java.lang.String".equals(arrayElementTypeName)) {
+                            if (fieldIsActive) {
+                                loop.addStatement("this.$N[i] = $T.readUTF(in)", field.toString(), util);
+                            } else {
+                                loop.addStatement("$T.readUTF(in)", util);
+                            }
+                        } else {
+                            if (fieldIsActive) {
+                                loop.addStatement("this.$N[i] = ("+arrayElementTypeName+")$T.readObject(in)", field.toString(), util);
+                            } else {
+                                loop.addStatement("$T.readObject(in)", util);
+                            }
+                        }
+                        loop.endControlFlow();
+                        loop.endControlFlow();
+
+                        builder.addCode(loop.build());
+
+                    } else if ("java.lang.String".equals(typeName)) {
+                        if (fieldIsActive) {
+                            builder.addStatement("this.$N = $T.readUTF(in)",field.toString(), util );
+                        } else {
+                            builder.addStatement("$T.readUTF(in)",util );
+                        }
                     } else {
-                        loop.addStatement("this.$N[i] = ("+arrayElementTypeName+")$T.readObject(in)", field.toString(), util);
+                        if (fieldIsActive) {
+                            builder.addStatement("this.$N = ("+typeName+")$T.readObject(in)", field.toString(), util);
+                        } else {
+                            builder.addStatement("$T.readObject(in)", util);
+                        }
                     }
-                    loop.endControlFlow();
-                    loop.endControlFlow();
-                    
-                    builder.addCode(loop.build());
-                    
-                } else if ("java.lang.String".equals(typeName)) {
-                    builder.addStatement("this.$N = $T.readUTF(in)",field.toString(), util );
-                } else {
-                    builder.addStatement("this.$N = ("+typeName+")$T.readObject(in)", field.toString(), util);
+
                 }
-                
             }
+            builder.endControlFlow();
         }
         
         MethodSpec.Builder getVersion = MethodSpec.methodBuilder("getVersion")
                 .returns(int.class)
                 .addModifiers(Modifier.PUBLIC)
                 .addAnnotation(AnnotationSpec.builder(Override.class).build())
-                .addStatement("return 1");
+                .addStatement("return $L", this.getCurrentVersion());
         
         MethodSpec.Builder getObjectId = MethodSpec.methodBuilder("getObjectId")
                 .returns(String.class)
@@ -378,6 +405,51 @@ public class ExternalizableClass {
     }
     
     
+    private Map<Integer, TypeElement> getVersions() {
+        Map<Integer,TypeElement> out = new HashMap<Integer, TypeElement>();
+        Pattern p = Pattern.compile("^Version(\\d+)$");
+        
+        for (Element el : classElement.getEnclosedElements()) {
+            if (el.getKind().isClass()) {
+                Matcher m = p.matcher(el.getSimpleName().toString());
+                if (m.matches()) {
+                    out.put(Integer.parseInt(m.group(1)), (TypeElement)el);
+                }
+            }
+        }
+        return out;
+    }
+    
+    private int getCurrentVersion() {
+        Externalizable ext = classElement.getAnnotation(Externalizable.class);
+        if (ext != null) {
+            return ext.version();
+        } 
+        return 1;
+    }
+    
+    private List<Element> getFieldsForVersion(TypeElement versionClass) {
+        ArrayList<Element> fields = new ArrayList<Element>();
+        TypeMirror currType = versionClass.asType();
+        while (currType != null && currType.getKind() == TypeKind.DECLARED) {
+            DeclaredType dtype = (DeclaredType)currType;
+            TypeElement typeEl = (TypeElement)dtype.asElement();
+            if ("java.lang.Object".equals(typeEl.getQualifiedName().toString())) {
+                break;
+            }
+            for (Element enclosed : typeEl.getEnclosedElements()) {
+                if (enclosed.getKind() == ElementKind.FIELD 
+                        && !enclosed.getModifiers().contains(Modifier.PRIVATE) 
+                        && !enclosed.getModifiers().contains(Modifier.STATIC)
+                        && !enclosed.getModifiers().contains(Modifier.TRANSIENT)
+                        && !enclosed.getModifiers().contains(Modifier.FINAL)) {
+                    fields.add(enclosed);
+                }
+            }
+            currType = typeEl.getSuperclass();
+        }
+        return fields;
+    }
     
     
     
