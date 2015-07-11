@@ -256,10 +256,12 @@ public class ServletClass {
         
         // Find all of the version classes
         Pattern pattern = Pattern.compile("^"+serverClass.getSimpleName()+"VersionsFor(\\d+)$");
+        int numVersions = 0;
         for (Element e : currentPackage.getEnclosedElements()) {
             if (e.getKind().isClass()) {
                 Matcher m = pattern.matcher(e.getSimpleName());
                 if (m.matches()) {
+                    numVersions++;
                     createBuilder.beginControlFlow("case $L:", m.group(1));
                     createBuilder.addStatement("classVersion = $L.getVersionFor(cls)", e.getSimpleName());
                     createBuilder.addStatement("break");
@@ -268,7 +270,9 @@ public class ServletClass {
             }
         }
         createBuilder.beginControlFlow("default:");
-        createBuilder.addStatement("throw new RuntimeException(\"No version specification found for client version \"+v)");
+        if (numVersions > 0) {
+            createBuilder.addStatement("throw new RuntimeException(\"No version specification found for client version \"+v)");
+        }
         createBuilder.endControlFlow();
         
         createBuilder.endControlFlow(); // switch
