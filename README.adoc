@@ -197,6 +197,10 @@ public class TestWebServer {
 
 Eventually, you'll face the situation where the client is using older versions of Externalizable classes than the server.  The server needs to be able to read old versions of classes, as well as write old versions so that it can still talk to old clients.  See https://github.com/shannah/CN1RPC/wiki/Versioning-Externalizables[Versioning Executables] to learn how to handle this case.
 
+== Demo Projects
+
+See the https://github.com/shannah/CN1RPC-demos[CN1RPC-demos repository] for demo client-server projects using CN1RPC.
+
 == Troubleshooting & Known Issues
 
 === 404 Error Trying to Access Servlet 
