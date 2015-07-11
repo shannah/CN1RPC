@@ -69,8 +69,8 @@ public class TestWebServerProxy {
     throw new RuntimeException("No matching implementation found for class.");
   }
 
-  public int add(int arg0, int arg1) throws IOException {
-    return (Integer)WebServiceProxyCall.invokeWebserviceSync(def_add, arg0, arg1);
+  public int add(int a, int b) throws IOException {
+    return (Integer)WebServiceProxyCall.invokeWebserviceSync(def_add, a, b);
   }
 
   public TestExternalizable getExternalizable() throws IOException {
@@ -81,24 +81,24 @@ public class TestWebServerProxy {
     WebServiceProxyCall.invokeWebserviceSync(def_doSomethingWithNoOutput);
   }
 
-  public void noOutputWithExternalizableInput(TestExternalizable arg0) throws IOException {
-    WebServiceProxyCall.invokeWebserviceSync(def_noOutputWithExternalizableInput, arg0);
+  public void noOutputWithExternalizableInput(TestExternalizable t) throws IOException {
+    WebServiceProxyCall.invokeWebserviceSync(def_noOutputWithExternalizableInput, t);
   }
 
-  public int intOutputWithExternalizableInput(TestExternalizable arg0) throws IOException {
-    return (Integer)WebServiceProxyCall.invokeWebserviceSync(def_intOutputWithExternalizableInput, arg0);
+  public int intOutputWithExternalizableInput(TestExternalizable t) throws IOException {
+    return (Integer)WebServiceProxyCall.invokeWebserviceSync(def_intOutputWithExternalizableInput, t);
   }
 
-  public int aVersionedMethod(TestExternalizable arg0) throws IOException {
-    return (Integer)WebServiceProxyCall.invokeWebserviceSync(def_aVersionedMethod, arg0, 1);
+  public int aVersionedMethod(TestExternalizable t) throws IOException {
+    return (Integer)WebServiceProxyCall.invokeWebserviceSync(def_aVersionedMethod, t, 1);
   }
 
-  public int addArray(int[] arg0) throws IOException {
-    return (Integer)WebServiceProxyCall.invokeWebserviceSync(def_addArray, arg0);
+  public int addArray(int[] args) throws IOException {
+    return (Integer)WebServiceProxyCall.invokeWebserviceSync(def_addArray, args);
   }
 
-  public int countChars(String[] arg0) throws IOException {
-    return (Integer)WebServiceProxyCall.invokeWebserviceSync(def_countChars, arg0);
+  public int countChars(String[] strs) throws IOException {
+    return (Integer)WebServiceProxyCall.invokeWebserviceSync(def_countChars, strs);
   }
 
   public int[] getIntArray() throws IOException {

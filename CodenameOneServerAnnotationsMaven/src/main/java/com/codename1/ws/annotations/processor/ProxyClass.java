@@ -48,8 +48,10 @@ import javax.annotation.processing.Filer;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
@@ -273,6 +275,7 @@ public class ProxyClass {
         ClassName wsDef = ClassName.get("com.codename1.io", "WebServiceProxyCall.WSDefinition");
         for (Element e : serverClass.getEnclosedElements()) {
             if (e.getKind() == ElementKind.METHOD) {
+                ExecutableElement methodEl = (ExecutableElement)e;
                 String methodName = e.getSimpleName().toString();
                 ExecutableType t = (ExecutableType)e.asType();
                 if (e.getModifiers().contains(Modifier.PUBLIC) && e.getModifiers().contains(Modifier.STATIC)) {
@@ -305,13 +308,17 @@ public class ProxyClass {
                         stmtArgs.add(methodName);
                     }
                     int i = 0;
-                    for (TypeMirror ptype : t.getParameterTypes()) {
+                    //System.out.println(methodEl.getParameters());
+                    for (VariableElement pel : methodEl.getParameters()) {
+                        TypeMirror ptype = pel.asType();
+                    //for (TypeMirror ptype : t.getParameterTypes()) {
                         if (ptype.getKind() == TypeKind.DECLARED && "WebServiceContext".equals(typeUtils.asElement(ptype).getSimpleName().toString())) {
                             stmt.append(serverClass.getAnnotation(WebService.class).version()).append(", ");
                         } else {
-                            methodSync.addParameter(ClassName.get(ptype), "arg"+i);
-                            stmt.append("arg").append(i).append(", ");
-                            i++;
+                            methodSync.addParameter(ClassName.get(ptype), pel.getSimpleName().toString());
+                            //stmt.append("arg").append(i).append(", ");
+                            //i++;
+                            stmt.append(pel.getSimpleName().toString()).append(", ");
                         }
                         /*
                         if (ptype.getKind().isPrimitive()) {

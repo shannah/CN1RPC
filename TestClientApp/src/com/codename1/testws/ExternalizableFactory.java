@@ -10,8 +10,8 @@ public class ExternalizableFactory {
     Util.register("com.codename1.testws.TestExternalizable", TestExternalizableImpl.class);
     Util.register("com.codename1.testws.InternalExternalizables.Nested1", InternalExternalizables_Nested1Impl.class);
     Util.register("com.codename1.testws.ChildExternalizable", ChildExternalizableImpl.class);
-    Util.register("com.codename1.testws.TestVersionedClass", TestVersionedClassImpl.class);
     Util.register("com.codename1.testws.ParentExternalizable", ParentExternalizableImpl.class);
+    Util.register("com.codename1.testws.TestVersionedClass", TestVersionedClassImpl.class);
     Util.register("com.codename1.testws.InternalExternalizables.Nested2", InternalExternalizables_Nested2Impl.class);
   }
 
@@ -25,11 +25,11 @@ public class ExternalizableFactory {
     if (ChildExternalizable.class.equals(cls)) {
       return (T)new ChildExternalizableImpl();
     }
-    if (TestVersionedClass.class.equals(cls)) {
-      return (T)new TestVersionedClassImpl();
-    }
     if (ParentExternalizable.class.equals(cls)) {
       return (T)new ParentExternalizableImpl();
+    }
+    if (TestVersionedClass.class.equals(cls)) {
+      return (T)new TestVersionedClassImpl();
     }
     if (InternalExternalizables.Nested2.class.equals(cls)) {
       return (T)new InternalExternalizables_Nested2Impl();
