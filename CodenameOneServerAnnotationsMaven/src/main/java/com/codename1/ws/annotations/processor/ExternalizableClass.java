@@ -26,6 +26,7 @@ import com.codename1.ws.annotations.Externalizable;
 import com.squareup.javapoet.AnnotationSpec;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.CodeBlock;
+import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.TypeSpec;
@@ -156,6 +157,9 @@ public class ExternalizableClass {
     public void generateSource(Filer filer) throws IOException {
         messager.printMessage(Kind.NOTE, "Generating source for "+getQualifiedName());
         // Generate the externalize method
+        int version = classElement.getAnnotation(Externalizable.class).version();
+        FieldSpec versionField = FieldSpec.builder(int.class, "__version").initializer(""+version).build();
+        
         MethodSpec.Builder externalizeBuilder = MethodSpec.methodBuilder("externalize")
                 .addParameter(java.io.DataOutputStream.class, "out")
                 .addModifiers(Modifier.PUBLIC)
@@ -164,52 +168,105 @@ public class ExternalizableClass {
         MethodSpec.Builder builder = externalizeBuilder;
         ClassName util = ClassName.get("com.codename1.io", "Util");
         
+        
+        
         List<Element> fields = getFieldsForVersion(classElement);
         
-        for (Element enclosed : fields) {
-            if (enclosed.getKind() == ElementKind.FIELD) {
-                VariableElement field = (VariableElement)enclosed;
-                TypeMirror type = field.asType();
-                String typeName = type.toString();
-                String writeStr = getPrimitiveWriteMethod(typeName);
-                
-                if (writeStr != null) {
-                    // It's a primitive type
-                    builder.addStatement("out."+writeStr+"(this."+field.toString()+")");
-                } else if (typeName.endsWith("[]")) {
-                    // It's an array
-                    builder.addStatement("out.writeInt(this.$N==null?0:this.$N.length)", field.toString(), field.toString());
-                    String arrayElementTypeName = typeName.substring(0, typeName.lastIndexOf("["));
-                    if (arrayElementTypeName.endsWith("]")) {
-                        messager.printMessage(Kind.ERROR, "@Externalizable doesn't support 2D arrays.  2D array found for field "+field+" of type "+classElement);
-                        return;
-                    }
-                    writeStr = getPrimitiveWriteMethod(arrayElementTypeName);
-                    
-                    CodeBlock.Builder loop = CodeBlock.builder();
-                    loop.beginControlFlow("if (this.$N != null)", field.toString());
-                    loop.beginControlFlow("for (int i=0; i<this.$N.length; i++)", field.toString());
-                    if (writeStr != null) {
-                        loop.addStatement("out."+writeStr+"(this.$N[i])", field.toString());
-                    } else if ("java.lang.String".equals(arrayElementTypeName)) {
-                        loop.addStatement("$T.writeUTF(this.$N[i], out)", util, field.toString());
-                    } else {
-                        loop.addStatement("$T.writeObject(this.$N[i], out)", util, field.toString());
-                    }
-                    loop.endControlFlow();
-                    loop.endControlFlow();
-                    
-                    builder.addCode(loop.build());
-                    
-                } else if ("java.lang.String".equals(typeName)) {
-                    builder.addStatement("$T.writeUTF(this.$N, out)", util, field.toString() );
-                } else {
-                    builder.addStatement("$T.writeObject(this.$N, out)", util, field.toString());
-                }
-                
+        List<Element> currentFields = fields;
+        Map<String, Element> currFieldsLookup = new HashMap<String, Element>();
+        for (Element f : currentFields) {
+            VariableElement field = (VariableElement)f;
+            currFieldsLookup.put(field.toString(), f);
+        }
+        Map<Integer, TypeElement> versions = getVersions();
+        versions.put(getCurrentVersion(), classElement);
+        boolean firstIteration = true;
+        for (Map.Entry<Integer, TypeElement> entry : versions.entrySet()) {
+            String elseStr = firstIteration ? "" : "else ";
+            firstIteration = false;
+            builder.beginControlFlow(elseStr + "if (__version == $L)", entry.getKey());
+            fields = getFieldsForVersion(entry.getValue());
+            
+            Map<String, Element> versionFieldsLookup = new HashMap<String, Element>();
+            for (Element f : fields) {
+                VariableElement field = (VariableElement)f;
+                versionFieldsLookup.put(field.toString(), f);
             }
+            
+            for (Element enclosed : fields) {
+                if (enclosed.getKind() == ElementKind.FIELD) {
+                    VariableElement field = (VariableElement)enclosed;
+                    TypeMirror type = field.asType();
+                    String typeName = type.toString();
+                    String writeStr = getPrimitiveWriteMethod(typeName);
+                    //Element versionedField = versionFieldsLookup.get(field.toString());
+                    //boolean fieldIsActive = (versionedField != null && versionedField.asType().toString().equals(typeName));
+                    Element currentField = currFieldsLookup.get(field.toString());
+                    boolean fieldIsActive = (currentField != null && currentField.asType().toString().equals(typeName));
+                    if (writeStr != null) {
+                        // It's a primitive type
+                        if (fieldIsActive) {
+                            builder.addStatement("out."+writeStr+"(this."+field.toString()+")");
+                        } else {
+                            String writeVal = null;
+                            switch (type.getKind()) {
+                                case BOOLEAN: writeVal = "false";break;
+                                default: writeVal = "0";
+                            }
+                            builder.addStatement("out."+writeStr+"("+writeVal+")");
+                        }
+                    } else if (typeName.endsWith("[]")) {
+                        // It's an array
+                        if (fieldIsActive) {
+                            builder.addStatement("out.writeInt(this.$N==null?0:this.$N.length)", field.toString(), field.toString());
+                         
+                            String arrayElementTypeName = typeName.substring(0, typeName.lastIndexOf("["));
+                            if (arrayElementTypeName.endsWith("]")) {
+                                messager.printMessage(Kind.ERROR, "@Externalizable doesn't support 2D arrays.  2D array found for field "+field+" of type "+classElement);
+                                return;
+                            }
+                            writeStr = getPrimitiveWriteMethod(arrayElementTypeName);
+
+                            CodeBlock.Builder loop = CodeBlock.builder();
+                            loop.beginControlFlow("if (this.$N != null)", field.toString());
+                            loop.beginControlFlow("for (int i=0; i<this.$N.length; i++)", field.toString());
+                            if (writeStr != null) {
+                                loop.addStatement("out."+writeStr+"(this.$N[i])", field.toString());
+                            } else if ("java.lang.String".equals(arrayElementTypeName)) {
+                                loop.addStatement("$T.writeUTF(this.$N[i], out)", util, field.toString());
+                            } else {
+                                loop.addStatement("$T.writeObject(this.$N[i], out)", util, field.toString());
+                            }
+                            loop.endControlFlow();
+                            loop.endControlFlow();
+
+                            builder.addCode(loop.build());
+                        } else {
+                            builder.addStatement("out.writeInt(0)");
+                        }
+
+                    } else if ("java.lang.String".equals(typeName)) {
+                        if (fieldIsActive) {
+                            builder.addStatement("$T.writeUTF(this.$N, out)", util, field.toString() );
+                        } else {
+                            builder.addStatement("$T.writeUTF(null, out)", util);
+                        }
+                    } else {
+                        if (fieldIsActive) {
+                            builder.addStatement("$T.writeObject(this.$N, out)", util, field.toString());
+                        } else {
+                            builder.addStatement("$T.writeObject(null, out)", util);
+                        }
+                    }
+
+                }
+            }
+            builder.endControlFlow();
         }
         
+        builder.beginControlFlow("else");
+        builder.addStatement("throw new RuntimeException(\"$L\")", "Unsupported write version for entity \"+getObjectId()+\" version \"+__version+\"");
+        builder.endControlFlow();
         
         // Now generate the internalize method
         MethodSpec.Builder internalizeBuilder = MethodSpec.methodBuilder("internalize")
@@ -220,17 +277,14 @@ public class ExternalizableClass {
                 .addException(IOException.class);
         builder = internalizeBuilder;
         
-        List<Element> currentFields = fields;
-        Map<String, Element> currFieldsLookup = new HashMap<String, Element>();
-        for (Element f : currentFields) {
-            VariableElement field = (VariableElement)f;
-            currFieldsLookup.put(field.toString(), f);
-        }
         
-        Map<Integer, TypeElement> versions = getVersions();
-        versions.put(getCurrentVersion(), classElement);
+        
+        firstIteration = true;
         for (Map.Entry<Integer, TypeElement> entry : versions.entrySet()) {
-            builder.beginControlFlow("if (version == $L)", entry.getKey());
+            String elseStr = firstIteration ? "" : "else ";
+            firstIteration = false;
+            builder.beginControlFlow(elseStr + "if (version == $L)", entry.getKey());
+            builder.addStatement("__version = version");
             fields = getFieldsForVersion(entry.getValue());
             
             for (Element enclosed : fields) {
@@ -328,23 +382,35 @@ public class ExternalizableClass {
             builder.endControlFlow();
         }
         
+        builder.beginControlFlow("else");
+        builder.addStatement("throw new RuntimeException(\"$L\")", "Unsupported read version for entity \"+getObjectId()+\" version \"+version+\"");
+        builder.endControlFlow();
+        
         MethodSpec.Builder getVersion = MethodSpec.methodBuilder("getVersion")
                 .returns(int.class)
                 .addModifiers(Modifier.PUBLIC)
                 .addAnnotation(AnnotationSpec.builder(Override.class).build())
-                .addStatement("return $L", this.getCurrentVersion());
+                .addStatement("return __version");
         
         MethodSpec.Builder getObjectId = MethodSpec.methodBuilder("getObjectId")
                 .returns(String.class)
                 .addModifiers(Modifier.PUBLIC)
                 .addAnnotation(AnnotationSpec.builder(Override.class).build())
                 .addStatement("return \"$L\"", classElement.getQualifiedName().toString());
-                
+             
+        MethodSpec.Builder setVersion = MethodSpec.methodBuilder("setVersion")
+                .returns(void.class)
+                .addModifiers(Modifier.PUBLIC)
+                .addParameter(int.class, "version")
+                .addStatement("__version=version");
         
         TypeSpec type = TypeSpec.classBuilder(getSimpleName())
                 .addModifiers(Modifier.PUBLIC)
                 .addSuperinterface(ClassName.get("com.codename1.io", "Externalizable"))
+                .addSuperinterface(ClassName.get(getPackageName(), "ExternalizableFactory.Versioned"))
                 .superclass(ClassName.get(classElement))
+                .addField(versionField)
+                .addMethod(setVersion.build())
                 .addMethod(getObjectId.build())
                 .addMethod(getVersion.build())
                 .addMethod(externalizeBuilder.build())

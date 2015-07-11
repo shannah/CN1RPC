@@ -21,6 +21,7 @@ THE SOFTWARE.
 */
 package com.codename1.testws;
 
+import com.codename1.ws.WebServiceContext;
 import com.codename1.ws.annotations.WebService;
 
 /**
@@ -50,6 +51,10 @@ public class TestWebServer {
     }
     
     public static int intOutputWithExternalizableInput(TestExternalizable t) {
+        return 1;
+    }
+    
+    public static int aVersionedMethod(TestExternalizable t, WebServiceContext context) {
         return 1;
     }
     

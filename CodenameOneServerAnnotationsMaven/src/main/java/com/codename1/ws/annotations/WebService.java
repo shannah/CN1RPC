@@ -408,4 +408,6 @@ public @interface WebService {
      * the directory that contains the default package in the class path.
      */
     public String[] exports() default {};
+    
+    public int version() default 1;
 }

@@ -14,7 +14,7 @@ package com.codename1.testws;
  *
  * @author shannah
  */
-(version=3)
+
 public class TestVersionedClass {
     int a;
     int b;

@@ -24,6 +24,8 @@ public class TestWebServerProxy {
 
   private final WebServiceProxyCall.WSDefinition def_intOutputWithExternalizableInput;
 
+  private final WebServiceProxyCall.WSDefinition def_aVersionedMethod;
+
   private final WebServiceProxyCall.WSDefinition def_addArray;
 
   private final WebServiceProxyCall.WSDefinition def_countChars;
@@ -45,6 +47,7 @@ public class TestWebServerProxy {
     def_doSomethingWithNoOutput = WebServiceProxyCall.defineWebService(this.url, "doSomethingWithNoOutput", WebServiceProxyCall.TYPE_VOID);
     def_noOutputWithExternalizableInput = WebServiceProxyCall.defineWebService(this.url, "noOutputWithExternalizableInput", WebServiceProxyCall.TYPE_VOID, WebServiceProxyCall.TYPE_EXTERNALIABLE);
     def_intOutputWithExternalizableInput = WebServiceProxyCall.defineWebService(this.url, "intOutputWithExternalizableInput", WebServiceProxyCall.TYPE_INT, WebServiceProxyCall.TYPE_EXTERNALIABLE);
+    def_aVersionedMethod = WebServiceProxyCall.defineWebService(this.url, "aVersionedMethod", WebServiceProxyCall.TYPE_INT, WebServiceProxyCall.TYPE_EXTERNALIABLE, WebServiceProxyCall.TYPE_INT);
     def_addArray = WebServiceProxyCall.defineWebService(this.url, "addArray", WebServiceProxyCall.TYPE_INT, WebServiceProxyCall.TYPE_INT_ARRAY);
     def_countChars = WebServiceProxyCall.defineWebService(this.url, "countChars", WebServiceProxyCall.TYPE_INT, WebServiceProxyCall.TYPE_STRING_ARRAY);
     def_getIntArray = WebServiceProxyCall.defineWebService(this.url, "getIntArray", WebServiceProxyCall.TYPE_INT_ARRAY);
@@ -84,6 +87,10 @@ public class TestWebServerProxy {
 
   public int intOutputWithExternalizableInput(TestExternalizable arg0) throws IOException {
     return (Integer)WebServiceProxyCall.invokeWebserviceSync(def_intOutputWithExternalizableInput, arg0);
+  }
+
+  public int aVersionedMethod(TestExternalizable arg0) throws IOException {
+    return (Integer)WebServiceProxyCall.invokeWebserviceSync(def_aVersionedMethod, arg0, 1);
   }
 
   public int addArray(int[] arg0) throws IOException {

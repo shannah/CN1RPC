@@ -10,7 +10,13 @@ import java.io.IOException;
 import java.lang.Override;
 import java.lang.String;
 
-public class TestExternalizableImpl extends TestExternalizable implements Externalizable {
+public class TestExternalizableImpl extends TestExternalizable implements Externalizable, ExternalizableFactory.Versioned {
+  int __version = 1;
+
+  public void setVersion(int version) {
+    __version=version;
+  }
+
   @Override
   public String getObjectId() {
     return "com.codename1.testws.TestExternalizable";
@@ -18,24 +24,30 @@ public class TestExternalizableImpl extends TestExternalizable implements Extern
 
   @Override
   public int getVersion() {
-    return 1;
+    return __version;
   }
 
   @Override
   public void externalize(DataOutputStream out) throws IOException {
-    out.writeInt(this.size);
-    Util.writeUTF(this.name, out);
-    out.writeInt(this.ages==null?0:this.ages.length);
-    if (this.ages != null) {
-      for (int i=0; i<this.ages.length; i++) {
-        out.writeInt(this.ages[i]);
+    if (__version == 1) {
+      out.writeInt(this.size);
+      Util.writeUTF(this.name, out);
+      out.writeInt(this.ages==null?0:this.ages.length);
+      if (this.ages != null) {
+        for (int i=0; i<this.ages.length; i++) {
+          out.writeInt(this.ages[i]);
+        }
       }
+    }
+    else {
+      throw new RuntimeException("Unsupported write version for entity "+getObjectId()+" version "+__version+"");
     }
   }
 
   @Override
   public void internalize(int version, DataInputStream in) throws IOException {
     if (version == 1) {
+      __version = version;
       this.size = in.readInt();
       this.name = Util.readUTF(in);
       int len = in.readInt();
@@ -45,6 +57,9 @@ public class TestExternalizableImpl extends TestExternalizable implements Extern
           this.ages[i] = in.readInt();
         }
       }
+    }
+    else {
+      throw new RuntimeException("Unsupported read version for entity "+getObjectId()+" version "+version+"");
     }
   }
 }

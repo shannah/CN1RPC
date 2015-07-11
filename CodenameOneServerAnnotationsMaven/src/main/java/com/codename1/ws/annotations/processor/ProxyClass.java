@@ -22,6 +22,7 @@ THE SOFTWARE.
 
 package com.codename1.ws.annotations.processor;
 
+import com.codename1.ws.annotations.Externalizable;
 import com.codename1.ws.annotations.WebService;
 import com.squareup.javapoet.AnnotationSpec;
 import com.squareup.javapoet.ClassName;
@@ -139,7 +140,7 @@ public class ProxyClass {
                         } else {
                             TypeElement te = (TypeElement)((DeclaredType)ptype).asElement();
                             String pkg = getPackageName(te.getQualifiedName().toString());
-                            if (pkg != null && !"".equals(pkg) && !pkg.startsWith("java")) {
+                            if (pkg != null && !"".equals(pkg) && !pkg.startsWith("java") && te.getAnnotation(Externalizable.class) != null) {
                                 out.add(pkg);
                             }
                         }
@@ -305,10 +306,13 @@ public class ProxyClass {
                     }
                     int i = 0;
                     for (TypeMirror ptype : t.getParameterTypes()) {
-                        
-                        methodSync.addParameter(ClassName.get(ptype), "arg"+i);
-                        stmt.append("arg").append(i).append(", ");
-                        i++;
+                        if (ptype.getKind() == TypeKind.DECLARED && "WebServiceContext".equals(typeUtils.asElement(ptype).getSimpleName().toString())) {
+                            stmt.append(serverClass.getAnnotation(WebService.class).version()).append(", ");
+                        } else {
+                            methodSync.addParameter(ClassName.get(ptype), "arg"+i);
+                            stmt.append("arg").append(i).append(", ");
+                            i++;
+                        }
                         /*
                         if (ptype.getKind().isPrimitive()) {
                             
@@ -347,7 +351,10 @@ public class ProxyClass {
                         //methodSync.addParameter(ClassName.get(ptype), "arg")
                         stmt.append("$T.TYPE_$L, ");
                         stmtArgs.add(proxyCall);
-                        if (ptype.getKind() == TypeKind.VOID || ptype.getKind().isPrimitive()) {
+                        
+                        if (ptype.getKind() == TypeKind.DECLARED && "WebServiceContext".equals(typeUtils.asElement(ptype).getSimpleName().toString())) {
+                            stmtArgs.add("INT");
+                        } else if (ptype.getKind() == TypeKind.VOID || ptype.getKind().isPrimitive()) {
                             stmtArgs.add(ptype.getKind().name().toUpperCase());
                         } else if (ptype.getKind() == TypeKind.ARRAY) {
                             String elType = getArrayElementType(ptype.toString());

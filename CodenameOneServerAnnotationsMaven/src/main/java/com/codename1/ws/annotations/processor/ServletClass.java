@@ -23,6 +23,8 @@ THE SOFTWARE.
 package com.codename1.ws.annotations.processor;
 
 
+import com.codename1.ws.WebServiceContext;
+import com.codename1.ws.annotations.Externalizable;
 import com.codename1.ws.annotations.WebService;
 import com.squareup.javapoet.AnnotationSpec;
 import com.squareup.javapoet.ClassName;
@@ -30,9 +32,16 @@ import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
+import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeSpec;
+import com.squareup.javapoet.TypeVariableName;
 import java.io.DataInputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintWriter;
 import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -41,12 +50,16 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
+import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
@@ -57,7 +70,9 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic.Kind;
+import javax.tools.FileObject;
 import javax.tools.JavaFileObject;
+import javax.tools.StandardLocation;
 
 /**
  *
@@ -143,7 +158,7 @@ public class ServletClass {
                         } else {
                             TypeElement te = (TypeElement)((DeclaredType)ptype).asElement();
                             String pkg = getPackageName(te.getQualifiedName().toString());
-                            if (pkg != null && !"".equals(pkg) && !pkg.startsWith("java")) {
+                            if (pkg != null && !"".equals(pkg) && !pkg.startsWith("java") && te.getAnnotation(Externalizable.class) != null) {
                                 out.add(pkg);
                             }
                         }
@@ -207,6 +222,76 @@ public class ServletClass {
                 )
                 .build();
         
+        TypeSpec.Builder context = TypeSpec.classBuilder("Context")
+                .addModifiers(Modifier.PRIVATE)
+                .addSuperinterface(WebServiceContext.class);
+        
+        MethodSpec.Builder contextConstructor = MethodSpec.constructorBuilder()
+                .addParameter(int.class, "version")
+                .addStatement("this.version=version");
+        
+        FieldSpec versionField = FieldSpec.builder(int.class, "version", Modifier.PRIVATE).build();
+        context.addField(versionField)
+                .addMethod(contextConstructor.build())
+                .addMethod(MethodSpec.methodBuilder("getClientVersion")
+                        .addModifiers(Modifier.PUBLIC)
+                        .returns(int.class)
+                        .addStatement("return version")
+                        .addAnnotation(Override.class)
+                        .build())
+                ;
+        
+        MethodSpec.Builder createBuilder = MethodSpec.methodBuilder("create");
+        TypeVariableName type = TypeVariableName.get("T");
+        createBuilder.addModifiers(Modifier.PUBLIC)
+                .addAnnotation(Override.class)
+                .addTypeVariable(type)
+                .returns(type)
+                .addParameter(ParameterizedTypeName.get(ClassName.get("java.lang", "Class"), type), "cls")
+                ;
+        createBuilder.addStatement("int v = getClientVersion()");
+        createBuilder.addStatement("int classVersion = 0");
+        createBuilder.beginControlFlow("switch (v)");
+        PackageElement currentPackage = elementUtils.getPackageElement(getPackageName());
+        
+        // Find all of the version classes
+        Pattern pattern = Pattern.compile("^"+serverClass.getSimpleName()+"VersionsFor(\\d+)$");
+        for (Element e : currentPackage.getEnclosedElements()) {
+            if (e.getKind().isClass()) {
+                Matcher m = pattern.matcher(e.getSimpleName());
+                if (m.matches()) {
+                    createBuilder.beginControlFlow("case $L:", m.group(1));
+                    createBuilder.addStatement("classVersion = $L.getVersionFor(cls)", e.getSimpleName());
+                    createBuilder.addStatement("break");
+                    createBuilder.endControlFlow();
+                }
+            }
+        }
+        createBuilder.beginControlFlow("default:");
+        createBuilder.addStatement("throw new RuntimeException(\"No version specification found for client version \"+v)");
+        createBuilder.endControlFlow();
+        
+        createBuilder.endControlFlow(); // switch
+        
+        for (String pkg : findExportedPackages()) {
+            createBuilder.beginControlFlow("try")
+                    .addStatement("return new $T().create(cls, classVersion)", ClassName.get(pkg, "ExternalizableFactory"))
+                    .endControlFlow()
+                    .beginControlFlow("catch (Throwable t)")
+                    .endControlFlow()
+                    ;
+            
+        }
+        createBuilder.addStatement("throw new RuntimeException(\"Failed to find factory for class \"+cls)");
+        context.addMethod(createBuilder.build());
+        // Now to find the correct ExternalizableFactory
+        
+        
+        
+                
+        
+        
+        
         MethodSpec.Builder doPost = MethodSpec.methodBuilder("doPost")
                 .addModifiers(Modifier.PROTECTED)
                 .returns(void.class)
@@ -215,7 +300,10 @@ public class ServletClass {
                 .addException(ClassName.get("javax.servlet", "ServletException"))
                 .addException(IOException.class)
                 .addAnnotation(AnnotationSpec.builder(Override.class).build());
-                
+        
+        
+        
+        
         MethodSpec.Builder b = doPost;
         b.addStatement("$T di = new $T(request.getInputStream())", DataInputStream.class, DataInputStream.class);
         b.addStatement("$T methodName = di.readUTF()", String.class);
@@ -282,8 +370,12 @@ public class ServletClass {
                     
                     int i=0;
                     for (TypeMirror ptype : t.getParameterTypes()) {
-                        stmt.append("($T)args[").append(i++).append("], ");
-                        stmtArgs.add(ClassName.get(ptype));
+                        if (ptype.getKind() == TypeKind.DECLARED && "WebServiceContext".equals(types.asElement(ptype).getSimpleName().toString())) {
+                            stmt.append("new Context((int)args[").append(i++).append("]), ");
+                        } else {
+                            stmt.append("($T)args[").append(i++).append("], ");
+                            stmtArgs.add(ClassName.get(ptype));
+                        }
                         /*
                         if (ptype.getKind().isPrimitive()) {
                             stmt.append("(").append(ptype.toString()).append(")args[").append(i++).append("], ");
@@ -344,8 +436,11 @@ public class ServletClass {
                                 initArgs.add("TYPE_EXTERNALIABLE");
                             }
                         } else {
+                            
                             TypeElement te = (TypeElement)((DeclaredType)ptype).asElement();
-                            if ("java.lang.String".equals(te.getQualifiedName().toString())) {
+                            if ("WebServiceContext".equals(te.getSimpleName())) {
+                                initArgs.add("TYPE_INT");
+                            } else if ("java.lang.String".equals(te.getQualifiedName().toString())) {
                                 initArgs.add("TYPE_STRING");
                             } else if (isBoxedType(te.getQualifiedName().toString())) {
                                 initArgs.add("TYPE_"+te.getSimpleName().toString().toUpperCase()+"_OBJECT");
@@ -388,7 +483,9 @@ public class ServletClass {
                 .addModifiers(Modifier.PUBLIC)
                 .addMethod(initBuilder.build())
                 .addMethod(doPost.build())
+                .addType(context.build())
                 .addMethod(doGet);
+        
         for (FieldSpec fb : fieldSpecs) {
             typeSpec.addField(fb);
         }
@@ -418,11 +515,67 @@ public class ServletClass {
             }
         }
         
+        int version = serverClass.getAnnotation(WebService.class).version();
+        // UPdate the version file
+        FileObject resourceFile = filer.getResource(StandardLocation.SOURCE_PATH, getPackageName(), serverClass.getSimpleName()+".java");
+        String versionClassName = serverClass.getSimpleName()+"VersionsFor"+version;
+        File file = new File(new File(resourceFile.toUri().toURL().getFile()).getParentFile(), versionClassName+".java");
+        System.out.println("Version file output at "+file);
         
         
         
+        Set<TypeElement> externalizables = new HashSet<TypeElement>();
+        for (String pkg : findExportedPackages()) {
+            PackageElement pkgEl = elementUtils.getPackageElement(pkg);
+            findExternalizables(pkgEl, externalizables);
+        }
+        
+        TypeSpec.Builder versionsSpec = TypeSpec.classBuilder(versionClassName);
+        MethodSpec.Builder getVersionFor = MethodSpec.methodBuilder("getVersionFor")
+                .addModifiers(Modifier.STATIC)
+                .addParameter(Class.class, "cls")
+                .returns(int.class);
+        
+        boolean firstIteration = true;
+        for (TypeElement ext : externalizables) {
+            String elseStr = firstIteration ? "" : "else ";
+            firstIteration = false;
+            getVersionFor.beginControlFlow(elseStr + "if ($T.class.equals(cls))", ext.asType())
+                    .addStatement("return $L", ext.getAnnotation(Externalizable.class).version())
+                    .endControlFlow();
+           
+            
+        }
+        getVersionFor.addStatement("throw new RuntimeException(\"Cannot find version for class \"+cls)");
+        versionsSpec.addMethod(getVersionFor.build());
+        
+        JavaFile versionsFile = JavaFile.builder(getPackageName(), versionsSpec.build()).build();
+        
+        FileWriter fwriter = null;
+        try {
+            fwriter = new FileWriter(file);
+            versionsFile.writeTo(fwriter);
+        } finally {
+            if (fwriter != null) {
+                try {
+                    fwriter.close();
+                } catch (Throwable t){}
+            }
+        }
+
+         
+       
     }
 
+    private void findExternalizables(Element root, Set<TypeElement> out) {
+        if (root.getAnnotation(Externalizable.class) != null) {
+            out.add((TypeElement)root);
+        }
+        for (Element el : root.getEnclosedElements()) {
+            findExternalizables(el, out);
+        }
+    }
+    
     private static String[] boxedTypes = new String[]{
         "java.lang.Boolean",
         "java.lang.Integer",

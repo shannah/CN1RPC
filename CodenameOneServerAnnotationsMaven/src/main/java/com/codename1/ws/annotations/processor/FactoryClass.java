@@ -118,6 +118,9 @@ public class FactoryClass {
     
     public void generateSource(Filer filer) throws IOException {
         
+        
+        
+        
         MethodSpec.Builder initBuilder = MethodSpec.methodBuilder("init");
         MethodSpec.Builder b = initBuilder;
         b.returns(void.class)
@@ -146,10 +149,40 @@ public class FactoryClass {
             
         }
         b.addStatement("throw new RuntimeException(\"$L\")", "No matching implementation found for class.");
+        
+        MethodSpec.Builder createVersionedBuilder = MethodSpec.methodBuilder("create");
+        b = createVersionedBuilder;
+        
+        TypeSpec versionedInterface = TypeSpec.interfaceBuilder("Versioned")
+                .addMethod(MethodSpec.methodBuilder("setVersion")
+                        .addModifiers(Modifier.ABSTRACT, Modifier.PUBLIC)
+                        .addParameter(int.class, "version")
+                        .returns(void.class)
+                        .build()
+                ).addMethod(MethodSpec.methodBuilder("getVersion").returns(int.class).addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT).build())
+                .build();
+        
+        
+        type = TypeVariableName.get("T");
+        b.addModifiers(Modifier.PUBLIC)
+                .addTypeVariable(type)
+                .returns(type)
+                .addParameter(ParameterizedTypeName.get(ClassName.get("java.lang", "Class"), type), "cls")
+                .addParameter(int.class, "version")
+                .addStatement("T out = create(cls)")
+                .addStatement("((Versioned)out).setVersion(version)")
+                .addStatement("return out")
+                ;
+        
+        
+        
+        
         TypeSpec typeSpec = TypeSpec.classBuilder(getSimpleName())
                 .addModifiers(Modifier.PUBLIC)
                 .addMethod(initBuilder.build())
                 .addMethod(createBuilder.build())
+                .addType(versionedInterface)
+                .addMethod(createVersionedBuilder.build())
                 .build();
           
         

@@ -97,6 +97,8 @@ public class CN1ClientFiler implements Filer {
         return rootOutputLocation;
     }
     
+    
+    
     private class JFileObject extends SimpleJavaFileObject {
         JFileObject(URI uri, JavaFileObject.Kind kind) {
             super(uri, kind);
