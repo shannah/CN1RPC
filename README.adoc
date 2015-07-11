@@ -5,6 +5,16 @@ A library to facilitate RPC between Codename One clients and Java servers
 
 This library provides a minimal set of annotations to generate RPC client and server code for Codename One applications.  The library itself meant to be used in Java server projects, but it includes a mechanism to seamlessly keep client projects in sync.
 
+== Features
+
+* **Seamless integration** between Codename One clients and Java web servers.
+* **Uses Annotations to generate boiler-plate code**.  All you write is the server API as plain Java methods, and your client can call them directly using RPC as if they were just regular client java methods.
+* **Client and Server Always In Sync**.  Because it uses annotations, all glue code is generated automatically on compile. If you change your API everything will be updated automatically.
+* **Compatible with all Codename One Platforms**
+* **IDE Agnostic**.  Since it uses Annotations, it doesn't rely on any particular IDE or build tool.  Should work with Ant, Gradle, Maven, Eclipse, Netbeans, IntelliJ, or just plain command-line Javac if that's your thing.
+* **Support for POJO Parameters and Return Types**.  Includes annotations to generate appropriate Codename One serialization.  No need to implement `internalize()` and `externalize()` by hand.  Just write your POJO class add the `@Externalizable` annotation, and it will be shared automatically with both client and server projects.
+* **API Versioning Support**.  Read more https://github.com/shannah/CN1RPC/wiki/Versioning-Externalizables[here].
+
 == Tutorials
 
 * **https://github.com/shannah/CN1RPC/wiki/SimpleAdder-Tutorial[SimpleAdder Tutorial]** - An introductory tutorial for beginners on how to set up a very basic client-server application with CN1RPC
@@ -182,6 +192,10 @@ public class TestWebServer {
    ...
 }
 ----
+
+=== Versioning
+
+Eventually, you'll face the situation where the client is using older versions of Externalizable classes than the server.  The server needs to be able to read old versions of classes, as well as write old versions so that it can still talk to old clients.  See https://github.com/shannah/CN1RPC/wiki/Versioning-Externalizables[Versioning Executables] to learn how to handle this case.
 
 == Troubleshooting & Known Issues
 
