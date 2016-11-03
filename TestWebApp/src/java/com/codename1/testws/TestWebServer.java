@@ -73,4 +73,8 @@ public class TestWebServer {
     public static int[] getIntArray() {
         return new int[]{1,3,5};
     }
+    
+    public static String saySomething(String message) {
+        return "Hello "+message;
+    }
 }

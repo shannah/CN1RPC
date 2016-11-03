@@ -41,7 +41,7 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <executable>/usr/apache-ant-1.9.4/bin/ant</executable>
+                    <executable>/Users/shannah/apache-ant-1.9.4/bin/ant</executable>
                     <arguments>
                         <argument>-f</argument>
                         <argument>${project.basedir}/build.xml</argument>

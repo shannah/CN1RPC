@@ -386,9 +386,19 @@ public class ProxyClass {
                                 primitiveType = primitiveType.substring(dotPos+1);
                             }
                             stmtArgs.add(primitiveType.toUpperCase() + "_OBJECT");
-                            
+                        
                         } else {
-                            stmtArgs.add("EXTERNALIABLE");
+                            TypeElement te = (TypeElement)((DeclaredType)ptype).asElement();
+                            if ("WebServiceContext".equals(te.getSimpleName())) {
+                                stmtArgs.add("INT");
+                            } else if ("java.lang.String".equals(te.getQualifiedName().toString())) {
+                                stmtArgs.add("STRING");
+                            } else if (isBoxedType(te.getQualifiedName().toString())) {
+                                stmtArgs.add(te.getSimpleName().toString().toUpperCase()+"_OBJECT");
+                            } else {
+                                stmtArgs.add("EXTERNALIABLE");
+                            }
+                            //stmtArgs.add("EXTERNALIABLE");
                         }
                         i++;
                         

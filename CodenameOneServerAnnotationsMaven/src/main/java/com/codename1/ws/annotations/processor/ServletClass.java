@@ -357,7 +357,7 @@ public class ServletClass {
                             String rtfqn = rte.getQualifiedName().toString();
 
                             if ("java.lang.String".equals(rte.getQualifiedName().toString())) {
-                                stmtArgs.add(String.class);
+                                stmtArgs.add(ClassName.get(String.class));
                             } else if (isBoxedType(rte.getQualifiedName().toString())) {
                                 stmtArgs.add(ClassName.get("java.lang", getSimpleName(rtfqn)));
                             } else {

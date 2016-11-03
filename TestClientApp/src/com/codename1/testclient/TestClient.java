@@ -23,6 +23,7 @@ THE SOFTWARE.
 package com.codename1.testclient;
 
 
+import com.codename1.io.Log;
 import com.codename1.testws.TestWebServerProxy;
 import com.codename1.ui.Display;
 import com.codename1.ui.Form;
@@ -45,7 +46,7 @@ public class TestClient {
             e.printStackTrace();
         }
         
-        proxy = new TestWebServerProxy("http://localhost:8080/TestWebApp");
+        proxy = new TestWebServerProxy("http://localhost:8080/WEB-INF");
         // Pro users - uncomment this code to get crash reports sent to you automatically
         /*Display.getInstance().addEdtErrorHandler(new ActionListener() {
             public void actionPerformed(ActionEvent evt) {
@@ -75,7 +76,9 @@ public class TestClient {
             
             int c2 = proxy.addArray(new int[]{1,2,3,4});
             System.out.println("Answer is "+c2);
+            System.out.println("Server said "+proxy.saySomething("Steve"));
         } catch (IOException ex) {
+            Log.e(ex);
             //Logger.getLogger(TestClient.class.getName()).log(Level.SEVERE, null, ex);
         }
     }

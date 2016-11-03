@@ -32,6 +32,8 @@ public class TestWebServerProxy {
 
   private final WebServiceProxyCall.WSDefinition def_getIntArray;
 
+  private final WebServiceProxyCall.WSDefinition def_saySomething;
+
   public TestWebServerProxy(String url) {
     init();
     if (url.charAt(url.length()-1) != '/') {
@@ -51,6 +53,7 @@ public class TestWebServerProxy {
     def_addArray = WebServiceProxyCall.defineWebService(this.url, "addArray", WebServiceProxyCall.TYPE_INT, WebServiceProxyCall.TYPE_INT_ARRAY);
     def_countChars = WebServiceProxyCall.defineWebService(this.url, "countChars", WebServiceProxyCall.TYPE_INT, WebServiceProxyCall.TYPE_STRING_ARRAY);
     def_getIntArray = WebServiceProxyCall.defineWebService(this.url, "getIntArray", WebServiceProxyCall.TYPE_INT_ARRAY);
+    def_saySomething = WebServiceProxyCall.defineWebService(this.url, "saySomething", WebServiceProxyCall.TYPE_STRING, WebServiceProxyCall.TYPE_STRING);
   }
 
   private static void init() {
@@ -103,5 +106,9 @@ public class TestWebServerProxy {
 
   public int[] getIntArray() throws IOException {
     return (int[])WebServiceProxyCall.invokeWebserviceSync(def_getIntArray);
+  }
+
+  public String saySomething(String message) throws IOException {
+    return (String)WebServiceProxyCall.invokeWebserviceSync(def_saySomething, message);
   }
 }
